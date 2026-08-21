@@ -113,6 +113,8 @@ dsh plugin --profile web remove dsh-wenmai
 
 ### 5. 日常三件事
 
+对 Agent 直接说人话即可，不必自己拼工具参数。
+
 **查有没有写过**
 
 > 用 wenmai_written 查一下「某某选题」我写过没有
@@ -140,12 +142,73 @@ dsh plugin --profile web remove dsh-wenmai
 
 > 在文脉里搜关键词，读一下 `concepts/某个概念.md`
 
-规则：
+## 和 AI Agent 怎么用
 
-- 「写过没有」不要凭记忆，走 `wenmai_written`
-- 禁止修改 `raw/`；修正写在编译页上
-- 不负责抓网页或解析 PDF。有正文之后再 ingest
-- 也可用 Obsidian 直接打开 `~/wenmai`
+文脉是 DeepSeek Harness 插件：你在 Web UI 里跟 Agent 说话，Agent 调下面的工具读写 `~/wenmai`。开局会注入 SCHEMA、目录和最近日志，**不必每轮做一遍 RAG**。
+
+### Agent 开局会看到什么
+
+会话开始时插件会注入一段「文脉定向」：
+
+- `SCHEMA.md`：领域、frontmatter、标签、何时建页
+- `index.md`：现有实体 / 概念 / 对比 / 查询
+- `log.md` 尾部：最近写入
+
+所以 Agent 先读这份定向，再决定要不要 `wenmai_status` / `wenmai_search`。你也可以 `/wenmai orient` 再看一遍。
+
+### 你怎么下指令
+
+用自然语言点名工具，或只说目标。例如：
+
+| 你想做的事 | 可以这样说 |
+|---|---|
+| 看库在不在、有多少页 | 「看一下文脉状态」 |
+| 第一次建库 | 「用 wenmai_init 初始化，领域是……」 |
+| 选题防撞 | 「这个选题我写过没有？」 |
+| 收录成稿 | 「把这篇 ingest 再编译成概念页：`/绝对路径/draft.md`」 |
+| 查概念 | 「在文脉里搜 xxx，读一下对应概念页」 |
+| 体检 | 「对文脉跑一遍 lint」 |
+| 看关联 | 「生成关联图并打开」 |
+| 加原文目录 | 「用 wenmai_config 把 `~/Documents/scripts` 加成额外原文目录」 |
+
+斜杠命令适合你自己点：`/wenmai` 再补 `status` / `lint` / `orient` / `graph`。复杂读写仍走对话里的工具。
+
+### Agent 必须遵守的规则
+
+把这些当作给 Agent 的站规（插件 system prompt 里也有）：
+
+1. **「写过没有」必须走 `wenmai_written`**，不要凭训练记忆或闲聊印象回答。
+2. **`raw/` 只进不出**：`wenmai_ingest` 之后原文不可改；纠错写在 `concepts/` / `entities/` 等编译页。
+3. **`wenmai_write` 禁止写 `raw/`**。新编译页要有 YAML frontmatter，至少 2 个 `[[wikilinks]]`，并视情况 `updateIndex` + 写 log。
+4. **lint 只报告不自动修**。要修再用 `wenmai_write`。
+5. **不扫描家目录**。默认只扫当前会话工作区；额外路径由你确认，或 `wenmai_config` / 插件 `sourceRoots`。
+6. **不编造 sources 路径**，不负责抓网页或解析 PDF。有正文之后再 ingest。
+7. **关联图按需生成**，不要每轮都跑 `wenmai_graph`。
+
+### 推荐工作流
+
+**查询 / 选题防撞**
+
+1. 看开局定向里的 index
+2. `wenmai_written`（编译页 + 工作区文件名/标题）
+3. 需要细节再 `wenmai_search` → `wenmai_read`
+4. 基于编译页作答，引用 `[[页面]]`
+
+**收录一篇**
+
+1. `wenmai_ingest`（文件路径或粘贴正文 + `kind`）
+2. 在 index / 已有页里查有没有对应实体或概念
+3. `wenmai_write` 创建或更新编译页
+4. `updateIndex: true`，并写一条 log
+
+**体检**
+
+1. `wenmai_lint`：缺 frontmatter、断链、孤儿页、raw 哈希漂移
+2. 只改编译页，不改 `raw/`
+
+更短的操作说明在包内 `skills/wenmai/SKILL.md`，可复制或软链到 DSH 的 skills 扫描目录。
+
+也可用 Obsidian 直接打开 `~/wenmai`。
 
 ## 目录
 
@@ -183,13 +246,36 @@ dsh plugin --profile web remove dsh-wenmai
 
 > 用 wenmai_graph 生成关联图并打开
 
-会在文脉根目录写出 `graph.html`。用浏览器打开即可拖拽、搜索、切换标签/原文/未解析链接。局部图可以带 focus（页面 slug）和 depth。
+会在文脉根目录写出 `graph.html`（例如 `file:///Users/你/wenmai/graph.html`）。浏览器里可拖拽、缩放、搜索；左上角可切换 **力导向** / **目录簇**。局部图可以带 `focus`（页面 slug）和 `depth`。
+
+## 斜杠命令
+
+在 DSH 输入框输入 `/wenmai`，再补子命令：
+
+| 命令 | 作用 |
+|---|---|
+| `/wenmai` 或 `/wenmai status` | 是否已初始化、编译页/原文数量、sourceRoots 是否可读 |
+| `/wenmai lint` | 只读体检，输出错误和警告数 |
+| `/wenmai orient` | 重新读取并展示开局定向（SCHEMA + index + 近期 log） |
+| `/wenmai graph` | 生成 `graph.html` 并用系统浏览器打开 |
+| `/wenmai graph <slug>` | 以某页为中心生成局部图 |
 
 ## 工具
 
-`wenmai_status`、`wenmai_init`、`wenmai_ingest`、`wenmai_written`、`wenmai_search`、`wenmai_read`、`wenmai_write`、`wenmai_lint`、`wenmai_config`、`wenmai_graph`。
+Agent 在对话里调用的工具如下。参数未写的表示可省略。
 
-包内 `skills/wenmai/SKILL.md` 描述 Ingest / Query / Lint。可复制或软链到 DSH 的 skills 扫描目录（以当天官方路径为准）。
+| 工具 | 做什么 | 主要参数 |
+|---|---|---|
+| `wenmai_status` | 库是否已初始化、编译页/原文数量、当前会扫哪些 sourceRoots | 无 |
+| `wenmai_init` | 按领域创建目录树，以及 `SCHEMA.md` / `index.md` / `log.md` | **`domain`**（必填）：这个库覆盖什么 |
+| `wenmai_ingest` | 把一篇文件或粘贴文本复制进 `raw/`，之后不可改。编译是下一步 `write` | `filePath` 和/或 `content`；`title`；`kind`（`articles` / `scripts` / `docs` / `papers` / `workspace` / `transcripts` / `assets`） |
+| `wenmai_written` | 选题防撞：搜编译页标题/正文，以及工作区、额外 sourceRoots 里的文件名和标题 | **`query`**（必填）；`limit`（默认 20） |
+| `wenmai_search` | 在文脉库内做词法搜索（编译页 + `raw/`） | **`query`**（必填）；`limit`（默认 20） |
+| `wenmai_read` | 按相对路径读文脉根下的文件，例如 `concepts/foo.md` | **`path`**（必填）；`offset`（从第几行）；`limit`（读多少行） |
+| `wenmai_write` | 写编译页（YAML + Markdown）。**拒绝写入 `raw/`** | **`path`**、**`content`**（必填）；`log`（追加到 `log.md`）；`updateIndex`（是否把 `[[slug]]` 写入 index） |
+| `wenmai_lint` | 只读体检：孤儿页、断掉的 `[[wikilinks]]`、缺 frontmatter、raw sha256 漂移。不自动修复 | 无 |
+| `wenmai_config` | 查看或改额外原文目录。当前会话工作区始终在扫描列表里，改的是「额外」项，写入库内 `source-roots.json` | `add` 增加一条；`remove` 删一条；`set` 整表替换（逗号分隔，空字符串清空额外目录） |
+| `wenmai_graph` | 根据编译页 `[[wikilinks]]`、工作区/sourceRoots 里的 Markdown、标签和 sources 生成关联图，写出 `graph.html` | `focus`、`depth`（默认 2）；`includeTags` / `includeSources` / `includeMissing` / `includeArticles`（默认都为 true）；`open`（macOS 下用系统浏览器打开） |
 
 ## 开发
 

@@ -8,11 +8,11 @@ export async function buildOrient(root: string, budgetChars: number): Promise<st
   const index = await readOptional(path.join(root, 'index.md'))
   const log = await readOptional(path.join(root, 'log.md'))
   if (!schema && !index && !log) {
-    return '通鉴尚未初始化。请先调用 tongjian_init，并指定这个知识库覆盖的领域。'
+    return '文脉尚未初始化。请先调用 wenmai_init，并指定这个知识库覆盖的领域。'
   }
   const logTail = tailLines(log, LOG_TAIL_LINES)
   const parts = [
-    '# 通鉴定向（会话开始只读一次）',
+    '# 文脉定向（会话开始只读一次）',
     '',
     '## SCHEMA.md',
     schema || '（缺失）',

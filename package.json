@@ -1,7 +1,7 @@
 {
-  "name": "dsh-tongjian",
+  "name": "dsh-wenmai",
   "version": "0.1.0",
-  "description": "通鉴 Tongjian — 文字工作者的编译型知识库，DeepSeek Harness 插件",
+  "description": "文脉 Wenmai — 文字工作者的编译型知识库，DeepSeek Harness 插件",
   "type": "module",
   "license": "MIT",
   "main": "./dist/index.js",
@@ -31,7 +31,7 @@
   "keywords": [
     "dsh-plugin",
     "deepseek-harness",
-    "tongjian",
+    "wenmai",
     "wiki",
     "knowledge-base",
     "writing",

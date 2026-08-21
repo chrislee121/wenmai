@@ -2,7 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { spawn } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { Config, type Config as TongjianConfig } from './config.js'
+import { Config, type Config as WenmaiConfig } from './config.js'
 import { parseFrontmatter } from './frontmatter.js'
 import { writeGraphHtml } from './graph.js'
 import { RAW_KINDS, type RawKind } from './layout.js'
@@ -24,9 +24,9 @@ import { OBJECT_OUTPUT, parametersSchema } from './tool-def.js'
 import { findWritten } from './written.js'
 
 export { Config }
-export type { TongjianConfig as ConfigType }
+export type { WenmaiConfig as ConfigType }
 
-export const name = 'tongjian'
+export const name = 'wenmai'
 export const inject = ['tools', 'commands', 'systemPrompt']
 
 type ToolArgs = Record<string, string | number | boolean | undefined>
@@ -78,7 +78,7 @@ function rootPaths(refs: SourceRootRef[]): string[] {
   return refs.map((item) => item.path)
 }
 
-export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongjian', sourceRoots: [], orientBudgetChars: 8000 }): void {
+export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai', sourceRoots: [], orientBudgetChars: 8000 }): void {
   const parsed = Config['~standard'].validate(rawConfig ?? {})
   if ('issues' in parsed) {
     throw new Error(parsed.issues.map((issue) => issue.message).join('; '))
@@ -86,45 +86,45 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   const config = parsed.value
   const root = resolveRoot(config.root)
   const pluginRoots = config.sourceRoots ?? []
-  let orientText = '通鉴插件已加载，正在读取开局定向…'
+  let orientText = '文脉插件已加载，正在读取开局定向…'
 
   const refreshOrient = async (): Promise<void> => {
     try {
       orientText = await buildOrient(root, config.orientBudgetChars)
     } catch (error) {
-      orientText = `通鉴定向读取失败：${error instanceof Error ? error.message : String(error)}`
+      orientText = `文脉定向读取失败：${error instanceof Error ? error.message : String(error)}`
     }
   }
 
   ctx.effect(() => {
     void refreshOrient()
-    console.log(`[tongjian] plugin loaded, root: ${root}`)
+    console.log(`[wenmai] plugin loaded, root: ${root}`)
     return () => {}
   })
 
   ctx.systemPrompt.section({
-    name: 'tool:tongjian',
+    name: 'tool:wenmai',
     order: 116,
     text: [
-      '通鉴 Tongjian 是文字工作者的编译型知识库：raw/ 保存原文（文章、脚本、文案、文档等），entities/concepts 是编译后的页面。',
-      '- 先 tongjian_status / 阅读开局定向，再 ingest、query 或 lint。',
-      '- 查「我写过没有」用 tongjian_written，不要凭记忆回答。',
-      '- 看页面关联用 tongjian_graph，会扫描通鉴编译页和当前工作区文章，写出可在浏览器打开的 graph.html。',
-      '- 原文扫描默认用当前会话工作区；额外目录用 tongjian_config 添加，或写在插件 sourceRoots。',
-      '- tongjian_ingest 只落 raw/；用 tongjian_write 写编译页，并交叉链接、更新 index 与 log。',
+      '文脉 Wenmai 是文字工作者的编译型知识库：raw/ 保存原文（文章、脚本、文案、文档等），entities/concepts 是编译后的页面。',
+      '- 先 wenmai_status / 阅读开局定向，再 ingest、query 或 lint。',
+      '- 查「我写过没有」用 wenmai_written，不要凭记忆回答。',
+      '- 看页面关联用 wenmai_graph，会扫描文脉编译页和当前工作区文章，写出可在浏览器打开的 graph.html。',
+      '- 原文扫描默认用当前会话工作区；额外目录用 wenmai_config 添加，或写在插件 sourceRoots。',
+      '- wenmai_ingest 只落 raw/；用 wenmai_write 写编译页，并交叉链接、更新 index 与 log。',
       '- 禁止修改 raw/。lint 只报告，不自动修复。',
     ].join('\n'),
   })
 
   ctx.systemPrompt.context({
-    name: 'tool:tongjian-orient',
+    name: 'tool:wenmai-orient',
     order: 117,
     text: () => orientText,
   })
 
   registerTool(ctx, {
-      name: 'tongjian_status',
-      description: 'Report whether 通鉴 is initialized, page/raw counts, and sourceRoots readability.',
+      name: 'wenmai_status',
+      description: 'Report whether 文脉 is initialized, page/raw counts, and sourceRoots readability.',
       parameters: {},
       async execute(_args, exec) {
         throwIfAborted(exec.signal)
@@ -137,10 +137,10 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   })
 
   registerTool(ctx, {
-      name: 'tongjian_init',
-      description: 'Create the 通鉴 directory tree, SCHEMA.md, index.md, and log.md for a domain.',
+      name: 'wenmai_init',
+      description: 'Create the 文脉 directory tree, SCHEMA.md, index.md, and log.md for a domain.',
       parameters: {
-        domain: { type: 'string', required: true, description: 'What this 通鉴 covers, e.g. articles, video scripts, copy, and work docs' },
+        domain: { type: 'string', required: true, description: 'What this 文脉 covers, e.g. articles, video scripts, copy, and work docs' },
       },
       async execute(args, exec) {
         throwIfAborted(exec.signal)
@@ -155,8 +155,8 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   })
 
   registerTool(ctx, {
-      name: 'tongjian_ingest',
-      description: 'Copy one source into raw/ (immutable). Provide filePath and/or pasted content. Compilation is a later tongjian_write step.',
+      name: 'wenmai_ingest',
+      description: 'Copy one source into raw/ (immutable). Provide filePath and/or pasted content. Compilation is a later wenmai_write step.',
       parameters: {
         filePath: { type: 'string', description: 'Absolute or relative path to a local markdown/text file' },
         content: { type: 'string', description: 'Pasted source text when not ingesting a file' },
@@ -185,8 +185,8 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   })
 
   registerTool(ctx, {
-      name: 'tongjian_written',
-      description: 'Check whether a topic was already written: search compiled 通鉴 pages and configured sourceRoots filenames/titles.',
+      name: 'wenmai_written',
+      description: 'Check whether a topic was already written: search compiled 文脉 pages and configured sourceRoots filenames/titles.',
       parameters: {
         query: { type: 'string', required: true, description: 'Topic, product, or title fragment' },
         limit: { type: 'number', description: 'Max hits, default 20' },
@@ -204,8 +204,8 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   })
 
   registerTool(ctx, {
-      name: 'tongjian_search',
-      description: 'Lexical search over 通鉴 markdown (compiled pages and raw sources).',
+      name: 'wenmai_search',
+      description: 'Lexical search over 文脉 markdown (compiled pages and raw sources).',
       parameters: {
         query: { type: 'string', required: true, description: 'Search query' },
         limit: { type: 'number', description: 'Max hits, default 20' },
@@ -222,10 +222,10 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   })
 
   registerTool(ctx, {
-      name: 'tongjian_read',
-      description: 'Read a file under the 通鉴 root by relative path, e.g. concepts/deepseek-harness.md.',
+      name: 'wenmai_read',
+      description: 'Read a file under the 文脉 root by relative path, e.g. concepts/deepseek-harness.md.',
       parameters: {
-        path: { type: 'string', required: true, description: 'Relative path under 通鉴 root' },
+        path: { type: 'string', required: true, description: 'Relative path under 文脉 root' },
         offset: { type: 'number', description: 'Start line (0-based)' },
         limit: { type: 'number', description: 'Max lines to return' },
       },
@@ -240,8 +240,8 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   })
 
   registerTool(ctx, {
-      name: 'tongjian_write',
-      description: 'Write a compiled page under 通鉴 root. Refuses raw/. Optional log entry and index update.',
+      name: 'wenmai_write',
+      description: 'Write a compiled page under 文脉 root. Refuses raw/. Optional log entry and index update.',
       parameters: {
         path: { type: 'string', required: true, description: 'Relative path such as concepts/foo.md' },
         content: { type: 'string', required: true, description: 'Full markdown including YAML frontmatter' },
@@ -264,7 +264,7 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   })
 
   registerTool(ctx, {
-      name: 'tongjian_lint',
+      name: 'wenmai_lint',
       description: 'Read-only health check: orphans, broken wikilinks, missing frontmatter, raw sha256 drift.',
       parameters: {},
       async execute(_args, exec) {
@@ -278,9 +278,9 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   })
 
   registerTool(ctx, {
-      name: 'tongjian_config',
+      name: 'wenmai_config',
       description:
-        'Show or update extra sourceRoots. The current session workspace is always included by default. Use add/remove/set for additional directories (persisted in the 通鉴 vault).',
+        'Show or update extra sourceRoots. The current session workspace is always included by default. Use add/remove/set for additional directories (persisted in the 文脉 vault).',
       parameters: {
         add: { type: 'string', description: 'Add one extra source directory (absolute or ~/path)' },
         remove: { type: 'string', description: 'Remove one extra source directory previously added by this tool' },
@@ -308,9 +308,9 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   })
 
   registerTool(ctx, {
-      name: 'tongjian_graph',
+      name: 'wenmai_graph',
       description:
-        'Build an Obsidian-style knowledge graph from compiled pages plus markdown in the current workspace / sourceRoots. Writes graph.html under the 通鉴 root.',
+        'Build an Obsidian-style knowledge graph from compiled pages plus markdown in the current workspace / sourceRoots. Writes graph.html under the 文脉 root.',
       parameters: {
         focus: { type: 'string', description: 'Optional page slug or title for a local graph' },
         depth: { type: 'number', description: 'Local graph hop depth, default 2' },
@@ -345,13 +345,13 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
   })
 
   ctx.commands.register({
-    name: 'tongjian',
-    description: '通鉴: status | lint | orient | graph',
+    name: 'wenmai',
+    description: '文脉: status | lint | orient | graph',
     input: { hint: 'status|lint|orient|graph' },
     handler: async ({ rawInput, signal, agent }) => {
       throwIfAborted(signal)
       const sub = rawInput.trim() || 'status'
-      console.log(`[tongjian] /tongjian ${sub}`)
+      console.log(`[wenmai] /wenmai ${sub}`)
       try {
         if (sub === 'status') {
           const report = await status(root, await effectiveRoots(root, pluginRoots, agent))
@@ -374,7 +374,7 @@ export function apply(ctx: Context, rawConfig: TongjianConfig = { root: '~/tongj
           openLocalFile(result.htmlPath)
           return { kind: 'success', text: formatGraph(result) }
         }
-        return { kind: 'error', text: 'Usage: /tongjian [status|lint|orient|graph]' }
+        return { kind: 'error', text: 'Usage: /wenmai [status|lint|orient|graph]' }
       } catch (error) {
         return { kind: 'error', text: error instanceof Error ? error.message : String(error) }
       }
@@ -429,9 +429,9 @@ function formatStatus(report: Awaited<ReturnType<typeof status>>): string {
   const roots =
     report.sourceRoots
       .map((item) => `${item.readable ? 'ok' : 'missing'} [${item.origin}] ${item.path}`)
-      .join('\n') || '(none — pick a workspace, or add extras with tongjian_config)'
+      .join('\n') || '(none — pick a workspace, or add extras with wenmai_config)'
   return [
-    '通鉴 status',
+    '文脉 status',
     `Root: ${report.root}`,
     `Initialized: ${report.initialized ? 'yes' : 'no'}`,
     `Pages: ${report.pageCount}`,
@@ -444,7 +444,7 @@ function formatStatus(report: Awaited<ReturnType<typeof status>>): string {
 
 function formatLint(report: Awaited<ReturnType<typeof lintVault>>): string {
   const lines = [
-    `通鉴 lint: ${report.errorCount} errors, ${report.warningCount} warnings, ${report.filesExamined} files.`,
+    `文脉 lint: ${report.errorCount} errors, ${report.warningCount} warnings, ${report.filesExamined} files.`,
     ...report.diagnostics.slice(0, 20).map((item) => `- ${item.severity.toUpperCase()} ${item.code} ${item.path}: ${item.message}`),
   ]
   if (report.diagnostics.length > 20) lines.push(`... ${report.diagnostics.length - 20} more omitted`)
@@ -454,7 +454,7 @@ function formatLint(report: Awaited<ReturnType<typeof lintVault>>): string {
 function formatGraph(report: Awaited<ReturnType<typeof writeGraphHtml>>): string {
   const hubs = report.hubs.map((item) => `- ${item.label} (${item.degree})`).join('\n') || '(none)'
   return [
-    '通鉴 graph',
+    '文脉 graph',
     `File: ${report.htmlPath}`,
     `Compiled pages: ${report.pageCount}, workspace articles: ${report.articleCount}`,
     `Nodes: ${report.nodeCount}, edges: ${report.edgeCount}${report.truncated ? ' (article scan capped at 600)' : ''}`,

@@ -7,7 +7,7 @@ import { buildKnowledgeGraph, filterLocalGraph, mermaidFromGraph, writeGraphHtml
 import { initVault, writePage } from '../dist/store.js'
 
 async function withVault(run) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'tongjian-graph-'))
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'wenmai-graph-'))
   try {
     await initVault(dir, 'writing')
     await writePage(
@@ -68,7 +68,7 @@ test('writeGraphHtml writes a standalone viewer', async () => {
     assert.equal(result.pageCount, 2)
     assert.equal(result.articleCount, 0)
     const html = await readFile(result.htmlPath, 'utf8')
-    assert.match(html, /通鉴关联图/)
+    assert.match(html, /文脉关联图/)
     assert.match(html, /Alpha/)
     assert.match(html, /zoomTrack/)
     assert.match(html, /title="放大"/)
@@ -86,7 +86,7 @@ test('writeGraphHtml writes a standalone viewer', async () => {
 
 test('buildKnowledgeGraph includes workspace markdown from sourceRoots', async () => {
   await withVault(async (dir) => {
-    const sources = await mkdtemp(path.join(os.tmpdir(), 'tongjian-articles-'))
+    const sources = await mkdtemp(path.join(os.tmpdir(), 'wenmai-articles-'))
     try {
       await writeFile(
         path.join(sources, 'one.md'),

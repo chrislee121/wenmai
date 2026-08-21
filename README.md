@@ -1,6 +1,6 @@
-# 通鉴 Tongjian
+# 文脉 Wenmai
 
-把写过的东西编成一本可查的通鉴。
+把写过的东西织成可查的文脉。
 
 面向文字工作者：写文章、做自媒体、写视频脚本、写文案、写课程、写工作文档的人。DeepSeek Harness 插件。不依赖 Hermes，不用向量库，也不会把每一轮闲聊写进笔记。
 
@@ -14,25 +14,25 @@
 - 脚本、文案、文章是不是各写各的，互相打架？
 - 聊天里刚整理过的结论，下一轮又要重新发现一遍？
 
-通鉴把**你已经写过的原文**收进 `raw/`，再编译成互相链接的概念页。Agent 开局只读 SCHEMA、目录和最近日志，而不是每轮做一遍 RAG。
+文脉把**你已经写过的原文**收进 `raw/`，再编译成互相链接的概念页。Agent 开局只读 SCHEMA、目录和最近日志，而不是每轮做一遍 RAG。
 
 适用材料包括：公众号/博客/推文、视频脚本与口播稿、广告与社媒文案、课程讲义、SOP 与会议纪要、以及其它工作文档。
 
 ## 和其他开源项目有何不同
 
-npm 上已经有通用 wiki 插件。通鉴不和它们抢「Agent 记忆」这件事：
+npm 上已经有通用 wiki 插件。文脉不和它们抢「Agent 记忆」这件事：
 
-| | 通鉴 Tongjian | EveGoodEvening llmwiki | chancelu llmwiki | Hermes llm-wiki |
+| | 文脉 Wenmai | EveGoodEvening llmwiki | chancelu llmwiki | Hermes llm-wiki |
 |---|---|---|---|---|
 | 用户是谁 | 文字工作者、自媒体、脚本/文案/文档作者 | 要可追溯证据的 Agent | 要会话记忆的 Agent | Karpathy 式通用 wiki Agent |
 | 核心问题 | 这个选题我写过没有？ | 这条结论从哪条源来？ | 上一轮聊过什么？ | 怎么维护一本可链接的 wiki |
 | 写入从哪来 | 主动 ingest 成稿/素材 | `add_source` + 证据链 | 可 autoCapture 对话 | Agent 编译对话与资料 |
 | 目录长什么样 | `entities/` `concepts/` 等人可读页 | `sources/<sha256>/` | vault + chronicle | 类似三层 wiki |
 | 开局怎么用 | 只注入 SCHEMA + index + log 尾 | 偏检索/证据 | 每轮检索注入 | 按会话维护 |
-| 杀手功能 | `tongjian_written`：写过没有 | 源 ID 必须真实存在 | RRF 多路召回 | 完整 Agent 运行时 |
+| 杀手功能 | `wenmai_written`：写过没有 | 源 ID 必须真实存在 | RRF 多路召回 | 完整 Agent 运行时 |
 | 运行时 | 轻量 DSH 插件 | DSH 插件 | DSH 插件 | Hermes（更重） |
 
-一句话：**通鉴不是又一个 Agent 记忆插件，而是文字工作者的「选题防撞 + 成稿编译」知识库。**
+一句话：**文脉不是又一个 Agent 记忆插件，而是文字工作者的「选题防撞 + 成稿编译」知识库。**
 
 ## 怎么开始用
 
@@ -43,7 +43,7 @@ npm 上已经有通用 wiki 插件。通鉴不和它们抢「Agent 记忆」这�
 本机若没有 `dsh` 命令：
 
 ```sh
-npx --yes @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add /path/to/tongjian
+npx --yes @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add /path/to/wenmai
 npx --yes @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
 npx --yes @deepseek-ai/dsh@0.1.0-rc.8 web
 ```
@@ -51,24 +51,24 @@ npx --yes @deepseek-ai/dsh@0.1.0-rc.8 web
 已安装 CLI 时：
 
 ```sh
-dsh plugin --profile web add /path/to/tongjian
+dsh plugin --profile web add /path/to/wenmai
 dsh --profile web --dump-config
 dsh web
 ```
 
-`dump-config` 里应出现 `dsh-tongjian` 层和 `id: tongjian`。浏览器打开 <http://127.0.0.1:3080>。
+`dump-config` 里应出现 `dsh-wenmai` 层和 `id: wenmai`。浏览器打开 <http://127.0.0.1:3080>。
 
-默认数据目录是 `~/tongjian`，不会占用 Hermes 的 `~/wiki`。卸载插件不会删除通鉴数据：
+默认数据目录是 `~/wenmai`。若该目录还不存在、但本机已有 `~/tongjian`，会自动沿用旧目录。卸载插件不会删除文脉数据：
 
 ```sh
-dsh plugin --profile web remove dsh-tongjian
+dsh plugin --profile web remove dsh-wenmai
 ```
 
 ### 2. 选工作区
 
-在 Web UI 左上角选一个本地文件夹作为工作区。未选中时输入框是灰色的，这是 DeepSeek Harness 本身的限制，与通鉴无关。
+在 Web UI 左上角选一个本地文件夹作为工作区。未选中时输入框是灰色的，这是 DeepSeek Harness 本身的限制，与文脉无关。
 
-工作区就是你的文稿目录：选中后，`tongjian_written` 默认扫描这个工作区。不必再手写 `sourceRoots`。
+工作区就是你的文稿目录：选中后，`wenmai_written` 默认扫描这个工作区。不必再手写 `sourceRoots`。
 
 ### 3. 额外原文目录（可选）
 
@@ -76,22 +76,22 @@ dsh plugin --profile web remove dsh-tongjian
 
 **让 Agent 配：**
 
-> 用 tongjian_config 把 `~/Documents/scripts` 加成额外原文目录
+> 用 wenmai_config 把 `~/Documents/scripts` 加成额外原文目录
 
-会写入通鉴库里的 `source-roots.json`。也可以让 Agent `remove` 或 `set`（逗号分隔，空字符串清空额外目录）。当前会话工作区始终在扫描列表里。
+会写入文脉库里的 `source-roots.json`。也可以让 Agent `remove` 或 `set`（逗号分隔，空字符串清空额外目录）。当前会话工作区始终在扫描列表里。
 
 **或写在插件配置里**（profile 的 `cordis.patch.yml`，按 `id` 整行替换，不会深合并）：
 
 ```yaml
-- id: tongjian
+- id: wenmai
   config:
-    root: '~/tongjian'
+    root: '~/wenmai'
     sourceRoots:
       - '~/Documents/writing/scripts'
     orientBudgetChars: 8000
 ```
 
-- `root`：通鉴数据根，默认 `~/tongjian`
+- `root`：文脉数据根，默认 `~/wenmai`
 - `sourceRoots`：额外扫描根，叠加在会话工作区之上
 - 不要把家目录整盘配进去
 
@@ -101,25 +101,25 @@ dsh plugin --profile web remove dsh-tongjian
 
 对新库说一句：
 
-> 用 tongjian_init 初始化通鉴，领域是「个人文字工作：文章、脚本、文案、文档」。
+> 用 wenmai_init 初始化文脉，领域是「个人文字工作：文章、脚本、文案、文档」。
 
-或在输入框用斜杠命令看状态：先输入 `/tongjian` 选中命令，再补参数发送。
+或在输入框用斜杠命令看状态：先输入 `/wenmai` 选中命令，再补参数发送。
 
 ```text
-/tongjian status
-/tongjian lint
-/tongjian orient
+/wenmai status
+/wenmai lint
+/wenmai orient
 ```
 
 ### 5. 日常三件事
 
 **查有没有写过**
 
-> 用 tongjian_written 查一下「某某选题」我写过没有
+> 用 wenmai_written 查一下「某某选题」我写过没有
 
 **收录一篇成稿**
 
-> 把这篇 ingest 进通鉴，再编译成概念页：  
+> 把这篇 ingest 进文脉，再编译成概念页：  
 > `/path/to/your/draft.md`
 
 流程：`ingest` 只复制到 `raw/`（之后不可改）→ `write` 写 `concepts/` 或 `entities/` → 更新 `index.md` 和 `log.md`。
@@ -138,19 +138,19 @@ dsh plugin --profile web remove dsh-tongjian
 
 **查阅**
 
-> 在通鉴里搜关键词，读一下 `concepts/某个概念.md`
+> 在文脉里搜关键词，读一下 `concepts/某个概念.md`
 
 规则：
 
-- 「写过没有」不要凭记忆，走 `tongjian_written`
+- 「写过没有」不要凭记忆，走 `wenmai_written`
 - 禁止修改 `raw/`；修正写在编译页上
 - 不负责抓网页或解析 PDF。有正文之后再 ingest
-- 也可用 Obsidian 直接打开 `~/tongjian`
+- 也可用 Obsidian 直接打开 `~/wenmai`
 
 ## 目录
 
 ```text
-~/tongjian/
+~/wenmai/
 ├── SCHEMA.md
 ├── index.md
 ├── log.md
@@ -171,25 +171,25 @@ dsh plugin --profile web remove dsh-tongjian
 
 ## 关联图
 
-类似 Obsidian 的知识图谱：通鉴编译页的 `[[wikilinks]]`，加上当前工作区 / sourceRoots 里的 Markdown 文章（按目录成簇，并识别 wiki 链接和相对 `.md` 链接）。
+类似 Obsidian 的知识图谱：文脉编译页的 `[[wikilinks]]`，加上当前工作区 / sourceRoots 里的 Markdown 文章（按目录成簇，并识别 wiki 链接和相对 `.md` 链接）。
 
 在 DSH 里：
 
 ```text
-/tongjian graph
+/wenmai graph
 ```
 
 或对 Agent 说：
 
-> 用 tongjian_graph 生成关联图并打开
+> 用 wenmai_graph 生成关联图并打开
 
-会在通鉴根目录写出 `graph.html`。用浏览器打开即可拖拽、搜索、切换标签/原文/未解析链接。局部图可以带 focus（页面 slug）和 depth。
+会在文脉根目录写出 `graph.html`。用浏览器打开即可拖拽、搜索、切换标签/原文/未解析链接。局部图可以带 focus（页面 slug）和 depth。
 
 ## 工具
 
-`tongjian_status`、`tongjian_init`、`tongjian_ingest`、`tongjian_written`、`tongjian_search`、`tongjian_read`、`tongjian_write`、`tongjian_lint`、`tongjian_config`、`tongjian_graph`。
+`wenmai_status`、`wenmai_init`、`wenmai_ingest`、`wenmai_written`、`wenmai_search`、`wenmai_read`、`wenmai_write`、`wenmai_lint`、`wenmai_config`、`wenmai_graph`。
 
-包内 `skills/tongjian/SKILL.md` 描述 Ingest / Query / Lint。可复制或软链到 DSH 的 skills 扫描目录（以当天官方路径为准）。
+包内 `skills/wenmai/SKILL.md` 描述 Ingest / Query / Lint。可复制或软链到 DSH 的 skills 扫描目录（以当天官方路径为准）。
 
 ## 开发
 

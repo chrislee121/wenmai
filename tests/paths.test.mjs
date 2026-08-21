@@ -6,7 +6,7 @@ import test from 'node:test'
 import { PathEscapeError, isUnderRoot, resolveUnder } from '../dist/paths.js'
 
 async function withTemp(run) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'tongjian-'))
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'wenmai-'))
   try {
     await run(dir)
   } finally {
@@ -15,12 +15,12 @@ async function withTemp(run) {
 }
 
 test('resolveUnder allows nested relative paths', () => {
-  const root = '/tmp/tongjian-root'
+  const root = '/tmp/wenmai-root'
   assert.equal(resolveUnder(root, 'concepts/foo.md'), path.resolve(root, 'concepts/foo.md'))
 })
 
 test('resolveUnder rejects parent segments and absolute paths', () => {
-  const root = '/tmp/tongjian-root'
+  const root = '/tmp/wenmai-root'
   assert.throws(() => resolveUnder(root, '../etc/passwd'), PathEscapeError)
   assert.throws(() => resolveUnder(root, '/etc/passwd'), PathEscapeError)
   assert.throws(() => resolveUnder(root, 'concepts/foo/../../x.md'), PathEscapeError)

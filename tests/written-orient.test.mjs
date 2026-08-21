@@ -8,7 +8,7 @@ import { initVault, writePage } from '../dist/store.js'
 import { findWritten } from '../dist/written.js'
 
 async function withTemp(run) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'tongjian-'))
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'wenmai-'))
   try {
     await run(dir)
   } finally {

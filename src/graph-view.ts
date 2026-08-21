@@ -32,7 +32,7 @@ export function renderGraphHtml(graph: KnowledgeGraph): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>通鉴关联图</title>
+  <title>文脉关联图</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -121,12 +121,12 @@ export function renderGraphHtml(graph: KnowledgeGraph): string {
       <span><i class="dot" style="background:#4ecdc4"></i>工作区文章</span>
       <span><i class="dot" style="background:#d4a017"></i>目录</span>
       <span><i class="dot" style="background:#c47b9a"></i>标签</span>
-      <span><i class="dot" style="background:#8a8a8a"></i>通鉴原文</span>
+      <span><i class="dot" style="background:#8a8a8a"></i>文脉原文</span>
       <span><i class="dot" style="background:#c45c5c"></i>未解析</span>
     </div>
   </div>
   <aside class="panel" id="info">
-    <h2>通鉴关联图</h2>
+    <h2>文脉关联图</h2>
     <div class="muted" id="stats"></div>
     <div id="detail">滚轮缩放，拖空白处平移。放大后会显示文件名。左上角可切换展示方案。</div>
   </aside>
@@ -142,7 +142,7 @@ export function renderGraphHtml(graph: KnowledgeGraph): string {
     let sliderHeld = false;
     let view = 'force';
     try {
-      var saved = localStorage.getItem('tongjian-graph-view');
+      var saved = localStorage.getItem('wenmai-graph-view') || localStorage.getItem('tongjian-graph-view');
       if (saved === 'cluster' || saved === 'force') view = saved;
     } catch (e) {}
     if (location.hash.indexOf('cluster') >= 0) view = 'cluster';
@@ -903,7 +903,7 @@ export function renderGraphHtml(graph: KnowledgeGraph): string {
     }
     function applyView(next) {
       view = next === 'cluster' ? 'cluster' : 'force';
-      try { localStorage.setItem('tongjian-graph-view', view); } catch (e) {}
+      try { localStorage.setItem('wenmai-graph-view', view); } catch (e) {}
       document.body.classList.toggle('view-cluster', view === 'cluster');
       document.body.classList.toggle('view-force', view === 'force');
       document.getElementById('viewMode').value = view;

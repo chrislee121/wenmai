@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { lstat, realpath } from 'node:fs/promises'
@@ -17,10 +18,18 @@ export function expandHome(input: string): string {
   return input
 }
 
+const DEFAULT_VAULT = '~/wenmai'
+const LEGACY_VAULT = '~/tongjian'
+
 export function resolveRoot(root: string): string {
   const expanded = expandHome(root.trim())
   if (!expanded) throw new PathEscapeError('root must be a non-empty path')
-  return path.resolve(expanded)
+  const resolved = path.resolve(expanded)
+  const usingDefault = path.resolve(expandHome(DEFAULT_VAULT)) === resolved
+  if (usingDefault && !existsSync(resolved) && existsSync(expandHome(LEGACY_VAULT))) {
+    return path.resolve(expandHome(LEGACY_VAULT))
+  }
+  return resolved
 }
 
 function assertSafeRelative(rel: string): string {
@@ -46,7 +55,7 @@ export function resolveUnder(root: string, rel: string): string {
   const abs = path.resolve(rootAbs, safeRel)
   const relToRoot = path.relative(rootAbs, abs)
   if (relToRoot.startsWith('..') || path.isAbsolute(relToRoot)) {
-    throw new PathEscapeError('path escapes tongjian root')
+    throw new PathEscapeError('path escapes wenmai root')
   }
   return abs
 }
@@ -82,7 +91,7 @@ export async function assertNoSymlinkEscape(root: string, abs: string): Promise<
   try {
     const real = await realpath(abs)
     if (!isUnderRoot(rootReal, real)) {
-      throw new PathEscapeError('realpath escapes tongjian root')
+      throw new PathEscapeError('realpath escapes wenmai root')
     }
   } catch (error) {
     if (error instanceof PathEscapeError) throw error
@@ -91,7 +100,7 @@ export async function assertNoSymlinkEscape(root: string, abs: string): Promise<
     try {
       const parentReal = await realpath(path.dirname(abs))
       if (!isUnderRoot(rootReal, parentReal)) {
-        throw new PathEscapeError('parent path escapes tongjian root')
+        throw new PathEscapeError('parent path escapes wenmai root')
       }
     } catch (parentError) {
       const parentCode = (parentError as NodeJS.ErrnoException).code

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * 通鉴端到端验收：init → ingest 示例文稿 → write 编译页 → written/search/read/lint/graph
- * 使用仓库内脱敏 fixture，不读取私人目录。传 --live 则写 ~/tongjian。
+ * 文脉端到端验收：init → ingest 示例文稿 → write 编译页 → written/search/read/lint/graph
+ * 使用仓库内脱敏 fixture，不读取私人目录。传 --live 则写 ~/wenmai。
  */
 import assert from 'node:assert/strict'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
@@ -22,8 +22,8 @@ const SOURCE_ROOTS = [path.join(here, '../tests/fixtures')]
 const live = process.argv.includes('--live')
 
 const root = live
-  ? path.join(homedir(), 'tongjian')
-  : await mkdtemp(path.join(os.tmpdir(), 'tongjian-e2e-'))
+  ? path.join(homedir(), 'wenmai')
+  : await mkdtemp(path.join(os.tmpdir(), 'wenmai-e2e-'))
 
 try {
   const init = await initVault(root, '个人文字工作：文章、脚本、文案、文档')
@@ -84,7 +84,7 @@ sources: [${ingested.rawPath}]
   assert.equal(graph.ok, true)
   assert.ok(graph.nodeCount >= 1)
   assert.ok(graph.articleCount >= 1)
-  assert.match(await readFile(graph.htmlPath, 'utf8'), /通鉴关联图/)
+  assert.match(await readFile(graph.htmlPath, 'utf8'), /文脉关联图/)
 
   const orient = await buildOrient(root, 8000)
   assert.match(orient, /SCHEMA.md/)

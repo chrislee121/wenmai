@@ -167,7 +167,7 @@ export async function appendLog(root: string, entry: string): Promise<void> {
   try {
     existing = await readFile(abs, 'utf8')
   } catch {
-    existing = '# 通鉴日志\n\n'
+    existing = '# 文脉日志\n\n'
   }
   const block = entry.startsWith('## ') ? `${entry.trim()}\n` : `## [${todayStamp()}] ${entry.trim()}\n`
   const next = existing.endsWith('\n') ? `${existing}${block}\n` : `${existing}\n${block}\n`
@@ -237,7 +237,7 @@ export async function ingestText(
   },
 ): Promise<IngestResult> {
   if (!(await isInitialized(root))) {
-    throw new Error('vault is not initialized; call tongjian_init first')
+    throw new Error('vault is not initialized; call wenmai_init first')
   }
   const kind: RawKind = options.kind ?? (options.sourcePath ? 'workspace' : 'articles')
   const body = `${options.body.trimEnd()}\n`
@@ -284,7 +284,7 @@ export async function ingestText(
 function compileHint(rawPath: string): string {
   return [
     `Raw source saved at ${rawPath} (immutable).`,
-    'Compile it into entities/concepts pages with tongjian_write.',
+    'Compile it into entities/concepts pages with wenmai_write.',
     'Cross-link with [[wikilinks]], cite this raw path in frontmatter sources, then update index.md and log.md.',
     'Do not rewrite files under raw/.',
   ].join(' ')

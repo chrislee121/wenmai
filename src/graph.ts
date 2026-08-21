@@ -317,7 +317,7 @@ export function mermaidFromGraph(graph: KnowledgeGraph, limit = 40): string {
 
 export async function writeGraphHtml(root: string, options: GraphViewOptions = {}): Promise<GraphBuildResult> {
   if (!(await isInitialized(root))) {
-    throw new Error('vault is not initialized; call tongjian_init first')
+    throw new Error('vault is not initialized; call wenmai_init first')
   }
   const graph = await buildKnowledgeGraph(root, options)
   const htmlPath = path.join(root, GRAPH_FILE)

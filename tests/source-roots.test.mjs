@@ -37,7 +37,7 @@ test('merge prefers workspace then plugin then agent extras, unique by path', ()
 })
 
 test('agent extras persist in the vault and reject home directory', async () => {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'tongjian-roots-'))
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'wenmai-roots-'))
   try {
     const added = path.join(dir, 'drafts')
     await addAgentSourceRoot(dir, added)

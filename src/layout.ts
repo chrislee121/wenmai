@@ -16,7 +16,7 @@ export const TYPE_TO_DIR: Record<PageType, PageDir | null> = {
 }
 
 export function schemaTemplate(domain: string): string {
-  return `# 通鉴 Schema
+  return `# 文脉 Schema
 
 ## Domain
 ${domain}
@@ -63,7 +63,7 @@ Add a tag here BEFORE using it on a page.
 }
 
 export function indexTemplate(domain: string, today: string): string {
-  return `# 通鉴目录
+  return `# 文脉目录
 
 - Domain: ${domain}
 - Total pages: 0
@@ -80,9 +80,9 @@ export function indexTemplate(domain: string, today: string): string {
 }
 
 export function logTemplate(today: string, domain: string): string {
-  return `# 通鉴日志
+  return `# 文脉日志
 
-## [${today}] init | 通鉴 created
+## [${today}] init | 文脉 created
 - domain: ${domain}
 - directories: SCHEMA.md, index.md, log.md, raw/{articles,scripts,docs,papers,workspace,transcripts,assets}/, entities/, concepts/, comparisons/, queries/
 `

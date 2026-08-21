@@ -6,7 +6,7 @@ test('Config fills defaults', () => {
   const result = Config['~standard'].validate({})
   assert.equal('value' in result, true)
   if ('value' in result) {
-    assert.equal(result.value.root, '~/tongjian')
+    assert.equal(result.value.root, '~/wenmai')
     assert.deepEqual(result.value.sourceRoots, [])
     assert.equal(result.value.orientBudgetChars, 8000)
   }

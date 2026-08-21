@@ -1,7 +1,7 @@
 - insert:
-    - id: tongjian
-      name: dsh-tongjian
+    - id: wenmai
+      name: dsh-wenmai
       config:
-        root: '~/tongjian'
+        root: '~/wenmai'
         sourceRoots: []
         orientBudgetChars: 8000

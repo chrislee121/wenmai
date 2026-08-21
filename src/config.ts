@@ -5,7 +5,7 @@ export interface Config {
 }
 
 const DEFAULTS: Config = {
-  root: '~/tongjian',
+  root: '~/wenmai',
   sourceRoots: [],
   orientBudgetChars: 8000,
 }
@@ -61,7 +61,7 @@ function parse(value: unknown): StandardSuccess | StandardFailure {
 export const Config = {
   '~standard': {
     version: 1 as const,
-    vendor: 'tongjian',
+    vendor: 'wenmai',
     validate(value: unknown) {
       return parse(value)
     },

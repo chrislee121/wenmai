@@ -7,7 +7,7 @@ import { ingestText, initVault, writePage } from '../dist/store.js'
 import { lintVault } from '../dist/lint.js'
 
 async function withVault(run) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'tongjian-'))
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'wenmai-'))
   try {
     await initVault(dir, 'AI tools')
     await run(dir)

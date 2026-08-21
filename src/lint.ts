@@ -1,0 +1,135 @@
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { createHash } from 'node:crypto'
+import { extractWikilinks, parseFrontmatter } from './frontmatter.js'
+import { PAGE_DIRS, RAW_DIRS } from './layout.js'
+import { posixRel } from './paths.js'
+import { listMarkdownFiles } from './store.js'
+
+export interface LintDiagnostic {
+  severity: 'error' | 'warning'
+  code: string
+  path: string
+  message: string
+}
+
+export interface LintReport {
+  ok: true
+  errorCount: number
+  warningCount: number
+  filesExamined: number
+  diagnostics: LintDiagnostic[]
+}
+
+function hashBody(body: string): string {
+  return createHash('sha256').update(body, 'utf8').digest('hex')
+}
+
+export async function lintVault(root: string): Promise<LintReport> {
+  const diagnostics: LintDiagnostic[] = []
+  const pageFiles = await listMarkdownFiles(root, PAGE_DIRS)
+  const rawFiles = await listMarkdownFiles(root, RAW_DIRS)
+  const filesExamined = pageFiles.length + rawFiles.length + 2
+
+  let index = ''
+  try {
+    index = await readFile(path.join(root, 'index.md'), 'utf8')
+  } catch {
+    diagnostics.push({
+      severity: 'error',
+      code: 'index-missing',
+      path: 'index.md',
+      message: 'index.md is missing',
+    })
+  }
+
+  const knownSlugs = new Set<string>()
+  const pageTexts = new Map<string, string>()
+  for (const abs of pageFiles) {
+    knownSlugs.add(path.basename(abs, '.md'))
+    pageTexts.set(abs, await readFile(abs, 'utf8'))
+  }
+
+  for (const abs of pageFiles) {
+    const rel = posixRel(root, abs)
+    const text = pageTexts.get(abs) ?? ''
+    const parsed = parseFrontmatter(text)
+    const slug = path.basename(abs, '.md')
+    if (!parsed.hasFrontmatter) {
+      diagnostics.push({
+        severity: 'error',
+        code: 'frontmatter-missing',
+        path: rel,
+        message: 'compiled page is missing YAML frontmatter',
+      })
+    } else {
+      if (!parsed.frontmatter.title) {
+        diagnostics.push({
+          severity: 'warning',
+          code: 'title-missing',
+          path: rel,
+          message: 'frontmatter has no title',
+        })
+      }
+      if (!parsed.frontmatter.type) {
+        diagnostics.push({
+          severity: 'warning',
+          code: 'type-missing',
+          path: rel,
+          message: 'frontmatter has no type',
+        })
+      }
+    }
+    if (index && !index.includes(`[[${slug}]]`)) {
+      diagnostics.push({
+        severity: 'warning',
+        code: 'orphan-page',
+        path: rel,
+        message: `page is not listed in index.md as [[${slug}]]`,
+      })
+    }
+    for (const link of extractWikilinks(text)) {
+      const targetSlug = path.basename(link).replace(/\.md$/, '')
+      if (!knownSlugs.has(targetSlug)) {
+        diagnostics.push({
+          severity: 'warning',
+          code: 'broken-wikilink',
+          path: rel,
+          message: `[[${link}]] does not resolve to a compiled page`,
+        })
+      }
+    }
+  }
+
+  for (const abs of rawFiles) {
+    const rel = posixRel(root, abs)
+    const text = await readFile(abs, 'utf8')
+    const parsed = parseFrontmatter(text)
+    const stored = parsed.frontmatter.sha256
+    if (!stored) {
+      diagnostics.push({
+        severity: 'warning',
+        code: 'raw-hash-missing',
+        path: rel,
+        message: 'raw source has no sha256 frontmatter',
+      })
+      continue
+    }
+    if (stored !== hashBody(parsed.body)) {
+      diagnostics.push({
+        severity: 'error',
+        code: 'raw-hash-drift',
+        path: rel,
+        message: 'raw body sha256 does not match frontmatter; raw/ should be immutable',
+      })
+    }
+  }
+
+  return {
+    ok: true,
+    errorCount: diagnostics.filter((item) => item.severity === 'error').length,
+    warningCount: diagnostics.filter((item) => item.severity === 'warning').length,
+    filesExamined,
+    diagnostics,
+  }
+}

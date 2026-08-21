@@ -1,0 +1,7 @@
+- insert:
+    - id: tongjian
+      name: dsh-tongjian
+      config:
+        root: '~/tongjian'
+        sourceRoots: []
+        orientBudgetChars: 8000

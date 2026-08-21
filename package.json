@@ -4,6 +4,14 @@
   "description": "文脉 Wenmai — 文字工作者的编译型知识库，DeepSeek Harness 插件",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chrislee121/wenmai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chrislee121/wenmai/issues"
+  },
+  "homepage": "https://github.com/chrislee121/wenmai#readme",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

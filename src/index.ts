@@ -3,7 +3,6 @@ import { spawn } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Config, type Config as WenmaiConfig } from './config.js'
-import { parseFrontmatter } from './frontmatter.js'
 import { writeGraphHtml } from './graph.js'
 import { RAW_KINDS, type RawKind } from './layout.js'
 import { lintVault } from './lint.js'
@@ -19,7 +18,8 @@ import {
   writeAgentSourceRoots,
   type SourceRootRef,
 } from './source-roots.js'
-import { ingestText, initVault, readPage, status, writePage } from './store.js'
+import { ingestDirectory } from './ingest-dir.js'
+import { ingestText, initVault, readPage, status, titleFromMarkdown, writePage } from './store.js'
 import { OBJECT_OUTPUT, parametersSchema } from './tool-def.js'
 import { findWritten } from './written.js'
 
@@ -111,7 +111,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
       '- 查「我写过没有」用 wenmai_written，不要凭记忆回答。',
       '- 看页面关联用 wenmai_graph，会扫描文脉编译页和当前工作区文章，写出可在浏览器打开的 graph.html。',
       '- 原文扫描默认用当前会话工作区；额外目录用 wenmai_config 添加，或写在插件 sourceRoots。',
-      '- wenmai_ingest 只落 raw/；用 wenmai_write 写编译页，并交叉链接、更新 index 与 log。',
+      '- wenmai_ingest 只落 raw/；目录 ingest 默认 dry-run，用户确认后再 dryRun:false。用 wenmai_write 写编译页，不要对整批自动编译。',
       '- 禁止修改 raw/。lint 只报告，不自动修复。',
     ].join('\n'),
   })
@@ -156,10 +156,19 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   registerTool(ctx, {
       name: 'wenmai_ingest',
-      description: 'Copy one source into raw/ (immutable). Provide filePath and/or pasted content. Compilation is a later wenmai_write step.',
+      description:
+        'Copy sources into raw/ (immutable). Single file: filePath and/or content. Directory: dir (defaults to dry-run). Compilation is a later wenmai_write step; do not auto-compile a batch.',
       parameters: {
         filePath: { type: 'string', description: 'Absolute or relative path to a local markdown/text file' },
         content: { type: 'string', description: 'Pasted source text when not ingesting a file' },
+        dir: {
+          type: 'string',
+          description: 'Directory to ingest (workspace or sourceRoots only). Defaults to dry-run; set dryRun false after the user confirms the file list.',
+        },
+        dryRun: {
+          type: 'boolean',
+          description: 'Directory ingest only. Default true: list files, write nothing. false: copy into raw/.',
+        },
         title: { type: 'string', description: 'Source title; defaults to filename or first heading' },
         kind: {
           type: 'string',
@@ -170,7 +179,25 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
         throwIfAborted(exec.signal)
         try {
           const roots = await effectiveRoots(root, pluginRoots, exec.agent)
-          const ingested = await ingestFromArgs(root, rootPaths(roots), sessionWorkspaceCwd(exec.agent), {
+          const paths = rootPaths(roots)
+          const workspaceCwd = sessionWorkspaceCwd(exec.agent)
+          const dir = typeof args.dir === 'string' ? args.dir.trim() : ''
+          const hasFile = Boolean(typeof args.filePath === 'string' && args.filePath.trim())
+          const hasContent = Boolean(typeof args.content === 'string' && args.content.trim())
+          if (dir && (hasFile || hasContent)) {
+            throw new Error('dir cannot be combined with filePath or content')
+          }
+          if (dir) {
+            const ingested = await ingestDirectory(root, dir, {
+              allowedRoots: paths,
+              kind: normalizeKind(typeof args.kind === 'string' ? args.kind : undefined),
+              dryRun: args.dryRun !== false,
+              workspaceCwd,
+            })
+            if (!ingested.dryRun) await refreshOrient()
+            return ingested
+          }
+          const ingested = await ingestFromArgs(root, paths, workspaceCwd, {
             filePath: typeof args.filePath === 'string' ? args.filePath : undefined,
             content: typeof args.content === 'string' ? args.content : undefined,
             title: typeof args.title === 'string' ? args.title : undefined,
@@ -407,14 +434,10 @@ async function ingestFromArgs(
     body = await readFile(abs, 'utf8')
     sourcePath = abs
   }
-  if (!body) throw new Error('provide filePath or content')
-  const parsed = parseFrontmatter(body)
-  const heading = parsed.body.match(/^#\s+(.+)$/m)?.[1]
+  if (!body) throw new Error('provide filePath, content, or dir')
   const title =
     args.title?.trim() ||
-    (typeof parsed.frontmatter.title === 'string' ? parsed.frontmatter.title : '') ||
-    heading ||
-    (sourcePath ? path.basename(sourcePath, path.extname(sourcePath)) : 'untitled')
+    titleFromMarkdown(body, sourcePath ? path.basename(sourcePath, path.extname(sourcePath)) : 'untitled')
   const kind = normalizeKind(args.kind) ?? (sourcePath ? 'workspace' : 'articles')
   return ingestText(root, { title, body, kind, sourcePath })
 }

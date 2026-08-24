@@ -13,6 +13,7 @@ import { writeGraphHtml } from '../dist/graph.js'
 import { buildOrient } from '../dist/orient.js'
 import { lintVault } from '../dist/lint.js'
 import { searchVault } from '../dist/search.js'
+import { ingestDirectory } from '../dist/ingest-dir.js'
 import { ingestText, initVault, readPage, status, writePage } from '../dist/store.js'
 import { findWritten } from '../dist/written.js'
 
@@ -42,6 +43,12 @@ try {
   })
   assert.equal(ingested.ok, true)
   assert.match(ingested.rawPath, /^raw\/workspace\//)
+
+  const dirPreview = await ingestDirectory(root, SOURCE_ROOTS[0], { allowedRoots: SOURCE_ROOTS, dryRun: true })
+  assert.equal(dirPreview.dryRun, true)
+  assert.ok(dirPreview.planned >= 1)
+  const dirIngest = await ingestDirectory(root, SOURCE_ROOTS[0], { allowedRoots: SOURCE_ROOTS, dryRun: false })
+  assert.ok(dirIngest.deduped >= 1)
 
   const page = `---
 title: Local Web UI

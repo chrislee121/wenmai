@@ -27,7 +27,7 @@ description: "文脉 Wenmai: compile a writer's articles, scripts, copy, and doc
 |------|------|
 | `wenmai_status` | 是否已初始化、页数、sourceRoots |
 | `wenmai_init` | 按领域创建目录与 SCHEMA / index / log |
-| `wenmai_ingest` | 把一篇文件或粘贴文本落入 `raw/`（不可变） |
+| `wenmai_ingest` | 把一篇文件、粘贴文本或整个目录落入 `raw/`（不可变）。目录默认 dry-run |
 | `wenmai_written` | 查编译页 + 原文目录：写过没有 |
 | `wenmai_search` | 在文脉内词法搜索 |
 | `wenmai_read` / `wenmai_write` | 读/写相对路径；write 拒绝 `raw/` |
@@ -39,7 +39,7 @@ ingest 的 `kind`：`articles`（文章/博客/推文）、`scripts`（视频脚
 
 ## Ingest
 
-1. `wenmai_ingest` 保存 raw，得到 sha256 与路径
+1. `wenmai_ingest` 保存 raw，得到 sha256 与路径。目录模式先 dry-run，用户确认后再 `dryRun: false`。只落 `raw/`，不要对整批自动编译
 2. 在 index 和页面里查是否已有对应实体/概念
 3. 用 `wenmai_write` 创建或更新编译页（至少 2 个 `[[wikilinks]]`）
 4. `updateIndex: true`，并写 log
@@ -63,4 +63,5 @@ ingest 的 `kind`：`articles`（文章/博客/推文）、`scripts`（视频脚
 - 不修改 `raw/`
 - 不凭记忆回答「写过没有」，走 `wenmai_written`
 - 不扫描家目录；默认用当前会话工作区，额外路径只使用用户确认或 `wenmai_config` / 插件 `sourceRoots`
+- 目录 ingest 默认 dry-run，用户确认后再写入
 - 不编造 sources 路径

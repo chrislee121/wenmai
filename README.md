@@ -1,6 +1,6 @@
 # 文脉 Wenmai
 
-当前版本：**v0.1.0**
+当前版本：**v0.2.0**
 
 把写过的东西织成可查的文脉。
 
@@ -40,12 +40,12 @@ npm 上已经有通用 wiki 插件。文脉不和它们抢「Agent 记忆」这�
 
 ### 1. 安装插件
 
-需要 Node.js 22.19+（或 24+）。把本仓库路径换成你 clone 之后的位置。
+需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
 
 本机若没有 `dsh` 命令：
 
 ```sh
-npx --yes @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add /path/to/wenmai
+npx --yes @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add dsh-wenmai
 npx --yes @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
 npx --yes @deepseek-ai/dsh@0.1.0-rc.8 web
 ```
@@ -53,12 +53,14 @@ npx --yes @deepseek-ai/dsh@0.1.0-rc.8 web
 已安装 CLI 时：
 
 ```sh
-dsh plugin --profile web add /path/to/wenmai
+dsh plugin --profile web add dsh-wenmai
 dsh --profile web --dump-config
 dsh web
 ```
 
 `dump-config` 里应出现 `dsh-wenmai` 层和 `id: wenmai`。浏览器打开 <http://127.0.0.1:3080>。
+
+从源码开发时，仍可用本地路径：`dsh plugin --profile web add /path/to/wenmai`。
 
 默认数据目录是 `~/wenmai`。若该目录还不存在、但本机已有 `~/tongjian`，会自动沿用旧目录。卸载插件不会删除文脉数据：
 
@@ -126,6 +128,12 @@ dsh plugin --profile web remove dsh-wenmai
 > 把这篇 ingest 进文脉，再编译成概念页：  
 > `/path/to/your/draft.md`
 
+**收录整个文稿目录（先 dry-run）**
+
+> 用 wenmai_ingest 扫一下 `~/Documents/writing`，先 dry-run 看会收哪些文件
+
+确认清单后再说「dryRun 设成 false」。只落 `raw/`，不会自动写概念页。一次最多 600 篇；更多就拆目录再收。
+
 流程：`ingest` 只复制到 `raw/`（之后不可改）→ `write` 写 `concepts/` 或 `entities/` → 更新 `index.md` 和 `log.md`。
 
 按材料类型指定 `kind`（对应 `raw/` 子目录）：
@@ -168,6 +176,7 @@ dsh plugin --profile web remove dsh-wenmai
 | 第一次建库 | 「用 wenmai_init 初始化，领域是……」 |
 | 选题防撞 | 「这个选题我写过没有？」 |
 | 收录成稿 | 「把这篇 ingest 再编译成概念页：`/绝对路径/draft.md`」 |
+| 收录整个目录 | 「先 dry-run 扫一下这个文稿目录会 ingest 哪些文件」 |
 | 查概念 | 「在文脉里搜 xxx，读一下对应概念页」 |
 | 体检 | 「对文脉跑一遍 lint」 |
 | 看关联 | 「生成关联图并打开」 |
@@ -202,6 +211,12 @@ dsh plugin --profile web remove dsh-wenmai
 2. 在 index / 已有页里查有没有对应实体或概念
 3. `wenmai_write` 创建或更新编译页
 4. `updateIndex: true`，并写一条 log
+
+**收录一批**
+
+1. `wenmai_ingest` 带 `dir`，默认 dry-run
+2. 看清单，用户确认后 `dryRun: false`
+3. 需要编译的页再逐篇 `wenmai_write`，不要整批自动编译
 
 **体检**
 
@@ -270,7 +285,7 @@ Agent 在对话里调用的工具如下。参数未写的表示可省略。
 |---|---|---|
 | `wenmai_status` | 库是否已初始化、编译页/原文数量、当前会扫哪些 sourceRoots | 无 |
 | `wenmai_init` | 按领域创建目录树，以及 `SCHEMA.md` / `index.md` / `log.md` | **`domain`**（必填）：这个库覆盖什么 |
-| `wenmai_ingest` | 把一篇文件或粘贴文本复制进 `raw/`，之后不可改。编译是下一步 `write` | `filePath` 和/或 `content`；`title`；`kind`（`articles` / `scripts` / `docs` / `papers` / `workspace` / `transcripts` / `assets`） |
+| `wenmai_ingest` | 把文件、粘贴文本或整个目录复制进 `raw/`，之后不可改。编译是下一步 `write`。目录模式默认 dry-run | 单篇：`filePath` 和/或 `content`；`title`。目录：`dir`（必须在工作区或 sourceRoots 内）；`dryRun`（默认 true）。`kind`（`articles` / `scripts` / `docs` / `papers` / `workspace` / `transcripts` / `assets`） |
 | `wenmai_written` | 选题防撞：搜编译页标题/正文，以及工作区、额外 sourceRoots 里的文件名和标题 | **`query`**（必填）；`limit`（默认 20） |
 | `wenmai_search` | 在文脉库内做词法搜索（编译页 + `raw/`） | **`query`**（必填）；`limit`（默认 20） |
 | `wenmai_read` | 按相对路径读文脉根下的文件，例如 `concepts/foo.md` | **`path`**（必填）；`offset`（从第几行）；`limit`（读多少行） |

@@ -226,6 +226,14 @@ export async function findRawByHash(root: string, hash: string): Promise<string 
   return null
 }
 
+export function titleFromMarkdown(body: string, fallback: string): string {
+  const parsed = parseFrontmatter(body)
+  const fromFront = typeof parsed.frontmatter.title === 'string' ? parsed.frontmatter.title.trim() : ''
+  if (fromFront) return fromFront
+  const heading = parsed.body.match(/^#\s+(.+)$/m)?.[1]?.trim()
+  return heading || fallback
+}
+
 export async function ingestText(
   root: string,
   options: {
@@ -234,6 +242,7 @@ export async function ingestText(
     kind?: RawKind
     sourcePath?: string
     sourceUrl?: string
+    appendLogEntry?: boolean
   },
 ): Promise<IngestResult> {
   if (!(await isInitialized(root))) {
@@ -270,7 +279,9 @@ export async function ingestText(
     .filter((line) => line !== null)
     .join('\n')
   await writeFile(abs, `${header}${body}`, 'utf8')
-  await appendLog(root, `ingest | ${options.title}\n- raw: ${rel}\n- sha256: ${hash}`)
+  if (options.appendLogEntry !== false) {
+    await appendLog(root, `ingest | ${options.title}\n- raw: ${rel}\n- sha256: ${hash}`)
+  }
   return {
     ok: true,
     deduped: false,

@@ -13,10 +13,12 @@ export const SKIP_DIRS = new Set([
   '.agents',
   '.vscode',
   '.idea',
+  'raw',
 ])
 
-const SKIP_FILES = new Set(['CLAUDE.md', 'AGENTS.md', 'SKILL.md'])
-const MAX_SOURCE_BYTES = 512 * 1024
+export const SKIP_FILES = new Set(['CLAUDE.md', 'AGENTS.md', 'SKILL.md', 'SCHEMA.md', 'index.md', 'log.md'])
+export const MAX_SOURCE_BYTES = 512 * 1024
+export const MAX_SOURCE_FILES = 600
 
 export interface SourceMarkdown {
   abs: string
@@ -24,15 +26,44 @@ export interface SourceMarkdown {
   rel: string
 }
 
-export async function listSourceMarkdown(roots: string[], maxFiles = 600): Promise<SourceMarkdown[]> {
+export type SkipReason = 'skip-file' | 'too-large' | 'unreadable'
+
+export interface ScanSkip {
+  abs: string
+  rel: string
+  reason: SkipReason
+}
+
+export interface SourceScanResult {
+  files: SourceMarkdown[]
+  skipped: ScanSkip[]
+  truncated: boolean
+  maxFiles: number
+  notMarkdownCount: number
+}
+
+export async function listSourceMarkdown(roots: string[], maxFiles = MAX_SOURCE_FILES): Promise<SourceMarkdown[]> {
+  const scan = await scanSourceMarkdown(roots, maxFiles)
+  return scan.files
+}
+
+export async function scanSourceMarkdown(roots: string[], maxFiles = MAX_SOURCE_FILES): Promise<SourceScanResult> {
   const files: SourceMarkdown[] = []
+  const skipped: ScanSkip[] = []
   const seen = new Set<string>()
+  let truncated = false
+  let notMarkdownCount = 0
   const uniqueRoots = uniqueContainingRoots(roots)
   for (const root of uniqueRoots) {
-    await walk(root, root, files, seen, maxFiles)
-    if (files.length >= maxFiles) break
+    const hitCap = await walk(root, root, files, skipped, seen, maxFiles, (n) => {
+      notMarkdownCount += n
+    })
+    if (hitCap) {
+      truncated = true
+      break
+    }
   }
-  return files
+  return { files, skipped, truncated, maxFiles, notMarkdownCount }
 }
 
 function uniqueContainingRoots(roots: string[]): string[] {
@@ -46,34 +77,50 @@ async function walk(
   root: string,
   current: string,
   files: SourceMarkdown[],
+  skipped: ScanSkip[],
   seen: Set<string>,
   maxFiles: number,
-): Promise<void> {
-  if (files.length >= maxFiles) return
+  onNotMarkdown: (count: number) => void,
+): Promise<boolean> {
+  if (files.length >= maxFiles) return true
   let entries
   try {
     entries = await readdir(current, { withFileTypes: true })
   } catch {
-    return
+    return false
   }
   for (const entry of entries) {
-    if (files.length >= maxFiles) return
+    if (files.length >= maxFiles) return true
     const abs = path.join(current, entry.name)
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name) || entry.name.startsWith('.')) continue
-      await walk(root, abs, files, seen, maxFiles)
+      const hitCap = await walk(root, abs, files, skipped, seen, maxFiles, onNotMarkdown)
+      if (hitCap) return true
       continue
     }
-    if (!entry.isFile() || !entry.name.endsWith('.md')) continue
-    if (SKIP_FILES.has(entry.name)) continue
+    if (!entry.isFile()) continue
+    if (!entry.name.endsWith('.md')) {
+      onNotMarkdown(1)
+      continue
+    }
+    const rel = posixRel(root, abs)
+    if (SKIP_FILES.has(entry.name)) {
+      skipped.push({ abs, rel, reason: 'skip-file' })
+      continue
+    }
     if (seen.has(abs)) continue
     try {
       const info = await stat(abs)
-      if (info.size > MAX_SOURCE_BYTES) continue
+      if (info.size > MAX_SOURCE_BYTES) {
+        skipped.push({ abs, rel, reason: 'too-large' })
+        continue
+      }
     } catch {
+      skipped.push({ abs, rel, reason: 'unreadable' })
       continue
     }
     seen.add(abs)
-    files.push({ abs, root, rel: posixRel(root, abs) })
+    files.push({ abs, root, rel })
   }
+  return files.length >= maxFiles
 }

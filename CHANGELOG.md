@@ -2,18 +2,20 @@
 
 本文件记录文脉 Wenmai 的公开变更。版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.3.0] - 2026-08-31
+
+动笔前拦住已写过的选题；普通对话即可调用，不必点名工具。
 
 ### 新增
 
 - `wenmai_review` / `/wenmai review`：只读审视（源漂移传播到编译页、词法重复、冲突候选、结构问题、健康度）。findings 可 ack / snooze / wontfix
 - `wenmai_written` 改为 NEW / REVIEW / DUPLICATE 三态，并给出相似度与重叠片段
+- 系统提示按中文意图选工具，用户不必说出 `wenmai_*`
 
 ### 说明
 
 - 词法查重声明盲区：同一论点换词重写可能检不出
-- 用户用自然语言即可，不必说出工具名；插件会按意图选工具
-
+- review 不改编译页、不改 `raw/`；内容默认不出本机
 
 ## [0.2.0] - 2026-08-24
 
@@ -53,5 +55,6 @@
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 
+[0.3.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.3.0
 [0.2.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.2.0
 [0.1.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.1.0

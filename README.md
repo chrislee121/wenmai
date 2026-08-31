@@ -22,19 +22,19 @@
 
 ## 和其他开源项目有何不同
 
-npm 上已经有通用 wiki 插件。文脉不和它们抢「Agent 记忆」这件事：
+2026 年「Markdown 开放 + Agent 可读写 + lint」已经是入场券。文脉不靠这些能力做差异，靠的是约束：
 
-| | 文脉 Wenmai | EveGoodEvening llmwiki | chancelu llmwiki | Hermes llm-wiki |
+> **在你动笔的那一刻，用你不上传的全部旧稿，告诉你这个已经写过了。**
+
+| | 文脉 Wenmai | memory.wiki | Basic Memory | gosidian |
 |---|---|---|---|---|
-| 用户是谁 | 文字工作者、自媒体、脚本/文案/文档作者 | 要可追溯证据的 Agent | 要会话记忆的 Agent | Karpathy 式通用 wiki Agent |
-| 核心问题 | 这个选题我写过没有？ | 这条结论从哪条源来？ | 上一轮聊过什么？ | 怎么维护一本可链接的 wiki |
-| 写入从哪来 | 主动 ingest 成稿/素材 | `add_source` + 证据链 | 可 autoCapture 对话 | Agent 编译对话与资料 |
-| 目录长什么样 | `entities/` `concepts/` 等人可读页 | `sources/<sha256>/` | vault + chronicle | 类似三层 wiki |
-| 开局怎么用 | 只注入 SCHEMA + index + log 尾 | 偏检索/证据 | 每轮检索注入 | 按会话维护 |
-| 杀手功能 | `wenmai_written`：写过没有 | 源 ID 必须真实存在 | RRF 多路召回 | 完整 Agent 运行时 |
-| 运行时 | 轻量 DSH 插件 | DSH 插件 | DSH 插件 | Hermes（更重） |
+| 用户是谁 | 文字工作者、自媒体、脚本/文案/文档作者 | 要把知识变成任何 AI 都能 fetch 的公开 URL | 要给 Agent 长期记忆的个人/团队 | 要在仓库里编排 Agent 的开发者 |
+| 核心问题 | 这篇是不是已经写过了？ | 知识如何跨模型公开交付 | Agent 如何记住与检索 | Agent 如何 self-check / 编排 |
+| 内容是否上传 | 默认不出本机 | 结构上要求上传且公开可读 | 有托管版（内容上云） | 本地仓库，面向代码工作流 |
+| 介入时机 | 动笔前拦截 | 事后整理、公开查询 | 对话中记忆与检索 | 开发任务中的知识读写 |
+| 杀手功能 | `wenmai_written`：NEW / REVIEW / DUPLICATE | 公开 hub URL + 自动 schema | 语义搜索 + 双向同步 | 57 个 MCP 工具 |
 
-一句话：**文脉不是又一个 Agent 记忆插件，而是文字工作者的「选题防撞 + 成稿编译」知识库。**
+一句话：**文脉不是又一个 Agent 记忆插件，而是文字工作者的选题防撞：写之前告诉你。**
 
 ## 怎么开始用
 
@@ -221,7 +221,8 @@ dsh plugin --profile web remove dsh-wenmai
 **体检**
 
 1. `wenmai_lint`：缺 frontmatter、断链、孤儿页、raw 哈希漂移
-2. 只改编译页，不改 `raw/`
+2. `wenmai_review`：漂移是否传到编译页、重复、冲突候选、结构问题
+3. 只改编译页，不改 `raw/`
 
 更短的操作说明在包内 `skills/wenmai/SKILL.md`，可复制或软链到 DSH 的 skills 扫描目录。
 
@@ -274,6 +275,7 @@ dsh plugin --profile web remove dsh-wenmai
 | `/wenmai` 或 `/wenmai status` | 是否已初始化、编译页/原文数量、sourceRoots 是否可读 |
 | `/wenmai lint` | 只读体检，输出错误和警告数 |
 | `/wenmai orient` | 重新读取并展示开局定向（SCHEMA + index + 近期 log） |
+| `/wenmai review` | 只读审视：源漂移传播、重复、冲突候选、结构问题；不改编译页 |
 | `/wenmai graph` | 生成 `graph.html` 并用系统浏览器打开 |
 | `/wenmai graph <slug>` | 以某页为中心生成局部图 |
 
@@ -286,11 +288,12 @@ Agent 在对话里调用的工具如下。参数未写的表示可省略。
 | `wenmai_status` | 库是否已初始化、编译页/原文数量、当前会扫哪些 sourceRoots | 无 |
 | `wenmai_init` | 按领域创建目录树，以及 `SCHEMA.md` / `index.md` / `log.md` | **`domain`**（必填）：这个库覆盖什么 |
 | `wenmai_ingest` | 把文件、粘贴文本或整个目录复制进 `raw/`，之后不可改。编译是下一步 `write`。目录模式默认 dry-run | 单篇：`filePath` 和/或 `content`；`title`。目录：`dir`（必须在工作区或 sourceRoots 内）；`dryRun`（默认 true）。`kind`（`articles` / `scripts` / `docs` / `papers` / `workspace` / `transcripts` / `assets`） |
-| `wenmai_written` | 选题防撞：搜编译页标题/正文，以及工作区、额外 sourceRoots 里的文件名和标题 | **`query`**（必填）；`limit`（默认 20） |
+| `wenmai_written` | 动笔前拦截：搜编译页与工作区原文，给出 NEW / REVIEW / DUPLICATE，并附重叠片段。词法查重抓不到换词重写 | **`query`**（必填）；`limit`（默认 20） |
 | `wenmai_search` | 在文脉库内做词法搜索（编译页 + `raw/`） | **`query`**（必填）；`limit`（默认 20） |
 | `wenmai_read` | 按相对路径读文脉根下的文件，例如 `concepts/foo.md` | **`path`**（必填）；`offset`（从第几行）；`limit`（读多少行） |
 | `wenmai_write` | 写编译页（YAML + Markdown）。**拒绝写入 `raw/`** | **`path`**、**`content`**（必填）；`log`（追加到 `log.md`）；`updateIndex`（是否把 `[[slug]]` 写入 index） |
 | `wenmai_lint` | 只读体检：孤儿页、断掉的 `[[wikilinks]]`、缺 frontmatter、raw sha256 漂移。不自动修复 | 无 |
+| `wenmai_review` | 只读审视：把 raw 哈希漂移传播到编译页、词法重复、冲突候选、结构问题、健康度数字。不改页面。可用 finding id 做 ack / snooze / wontfix | `includeDismissed`；`ttlDays`（默认 180）；`duplicateThreshold`（默认 0.5）；`ack` / `snooze` / `wontfix`；`snoozeDays` |
 | `wenmai_config` | 查看或改额外原文目录。当前会话工作区始终在扫描列表里，改的是「额外」项，写入库内 `source-roots.json` | `add` 增加一条；`remove` 删一条；`set` 整表替换（逗号分隔，空字符串清空额外目录） |
 | `wenmai_graph` | 根据编译页 `[[wikilinks]]`、工作区/sourceRoots 里的 Markdown、标签和 sources 生成关联图，写出 `graph.html` | `focus`、`depth`（默认 2）；`includeTags` / `includeSources` / `includeMissing` / `includeArticles`（默认都为 true）；`open`（macOS 下用系统浏览器打开） |
 

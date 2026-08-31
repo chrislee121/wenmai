@@ -21,7 +21,8 @@ import {
 import { ingestDirectory } from './ingest-dir.js'
 import { ingestText, initVault, readPage, status, titleFromMarkdown, writePage } from './store.js'
 import { OBJECT_OUTPUT, parametersSchema } from './tool-def.js'
-import { findWritten } from './written.js'
+import { reviewVault } from './review/index.js'
+import { checkWritten } from './written.js'
 
 export { Config }
 export type { WenmaiConfig as ConfigType }
@@ -108,7 +109,8 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
     text: [
       '文脉 Wenmai 是文字工作者的编译型知识库：raw/ 保存原文（文章、脚本、文案、文档等），entities/concepts 是编译后的页面。',
       '- 先 wenmai_status / 阅读开局定向，再 ingest、query 或 lint。',
-      '- 查「我写过没有」用 wenmai_written，不要凭记忆回答。',
+      '- 查「我写过没有」用 wenmai_written，不要凭记忆回答。结论是 NEW / REVIEW / DUPLICATE 三态；换词重写可能漏检。',
+      '- 审视重复/冲突/过期/结构用 wenmai_review，只报告不改页。ack/snooze/wontfix 写入 review-state.json。',
       '- 看页面关联用 wenmai_graph，会扫描文脉编译页和当前工作区文章，写出可在浏览器打开的 graph.html。',
       '- 原文扫描默认用当前会话工作区；额外目录用 wenmai_config 添加，或写在插件 sourceRoots。',
       '- wenmai_ingest 只落 raw/；目录 ingest 默认 dry-run，用户确认后再 dryRun:false。用 wenmai_write 写编译页，不要对整批自动编译。',
@@ -213,7 +215,8 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   registerTool(ctx, {
       name: 'wenmai_written',
-      description: 'Check whether a topic was already written: search compiled 文脉 pages and configured sourceRoots filenames/titles.',
+      description:
+        'Check whether a topic was already written before drafting. Returns NEW / REVIEW / DUPLICATE plus similar compiled pages and source files. Lexical only: paraphrases may be missed.',
       parameters: {
         query: { type: 'string', required: true, description: 'Topic, product, or title fragment' },
         limit: { type: 'number', description: 'Max hits, default 20' },
@@ -222,8 +225,12 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
         throwIfAborted(exec.signal)
         try {
           const roots = await effectiveRoots(root, pluginRoots, exec.agent)
-          const hits = await findWritten(root, rootPaths(roots), String(args.query ?? ''), clampLimit(typeof args.limit === 'number' ? args.limit : undefined))
-          return { ok: true, query: String(args.query ?? ''), count: hits.length, hits }
+          return await checkWritten(
+            root,
+            rootPaths(roots),
+            String(args.query ?? ''),
+            clampLimit(typeof args.limit === 'number' ? args.limit : undefined),
+          )
         } catch (error) {
           return fail(error)
         }
@@ -305,6 +312,37 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
   })
 
   registerTool(ctx, {
+      name: 'wenmai_review',
+      description:
+        'Read-only knowledge review: source drift on compiled pages, duplicates, conflict candidates, structure, and health metrics. Does not edit pages. Optional ack/snooze/wontfix by finding id.',
+      parameters: {
+        includeDismissed: { type: 'boolean', description: 'Include ack/snooze/wontfix findings, default false' },
+        ttlDays: { type: 'number', description: 'updated TTL in days, default 180' },
+        duplicateThreshold: { type: 'number', description: 'Jaccard threshold for duplicates, default 0.5' },
+        ack: { type: 'string', description: 'Comma-separated finding ids to acknowledge' },
+        snooze: { type: 'string', description: 'Comma-separated finding ids to snooze' },
+        snoozeDays: { type: 'number', description: 'Snooze duration in days, default 30' },
+        wontfix: { type: 'string', description: 'Comma-separated finding ids to ignore' },
+      },
+      async execute(args, exec) {
+        throwIfAborted(exec.signal)
+        try {
+          return await reviewVault(root, {
+            includeDismissed: args.includeDismissed === true,
+            ttlDays: typeof args.ttlDays === 'number' ? args.ttlDays : undefined,
+            duplicateThreshold: typeof args.duplicateThreshold === 'number' ? args.duplicateThreshold : undefined,
+            ack: typeof args.ack === 'string' ? [args.ack] : undefined,
+            snooze: typeof args.snooze === 'string' ? [args.snooze] : undefined,
+            snoozeDays: typeof args.snoozeDays === 'number' ? args.snoozeDays : undefined,
+            wontfix: typeof args.wontfix === 'string' ? [args.wontfix] : undefined,
+          })
+        } catch (error) {
+          return fail(error)
+        }
+      },
+  })
+
+  registerTool(ctx, {
       name: 'wenmai_config',
       description:
         'Show or update extra sourceRoots. The current session workspace is always included by default. Use add/remove/set for additional directories (persisted in the 文脉 vault).',
@@ -373,8 +411,8 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   ctx.commands.register({
     name: 'wenmai',
-    description: '文脉: status | lint | orient | graph',
-    input: { hint: 'status|lint|orient|graph' },
+    description: '文脉: status | lint | orient | graph | review',
+    input: { hint: 'status|lint|orient|graph|review' },
     handler: async ({ rawInput, signal, agent }) => {
       throwIfAborted(signal)
       const sub = rawInput.trim() || 'status'
@@ -392,6 +430,10 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
           await refreshOrient()
           return { kind: 'success', text: orientText }
         }
+        if (sub === 'review') {
+          const report = await reviewVault(root)
+          return { kind: 'success', text: formatReview(report) }
+        }
         if (sub === 'graph' || sub.startsWith('graph ')) {
           const focus = sub.slice('graph'.length).trim() || undefined
           const result = await writeGraphHtml(root, {
@@ -401,7 +443,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
           openLocalFile(result.htmlPath)
           return { kind: 'success', text: formatGraph(result) }
         }
-        return { kind: 'error', text: 'Usage: /wenmai [status|lint|orient|graph]' }
+        return { kind: 'error', text: 'Usage: /wenmai [status|lint|orient|graph|review]' }
       } catch (error) {
         return { kind: 'error', text: error instanceof Error ? error.message : String(error) }
       }
@@ -471,6 +513,20 @@ function formatLint(report: Awaited<ReturnType<typeof lintVault>>): string {
     ...report.diagnostics.slice(0, 20).map((item) => `- ${item.severity.toUpperCase()} ${item.code} ${item.path}: ${item.message}`),
   ]
   if (report.diagnostics.length > 20) lines.push(`... ${report.diagnostics.length - 20} more omitted`)
+  return lines.join('\n')
+}
+
+function formatReview(report: Awaited<ReturnType<typeof reviewVault>>): string {
+  const lines = [
+    `文脉 review: ${report.findingCount} findings, pages ${report.metrics.pageCount}, raw ${report.metrics.rawCount}.`,
+    `duplicates ${report.metrics.duplicatePairs}, stale ${report.metrics.stalePageCount}, expired ${report.metrics.expiredPageCount}, orphans ${report.metrics.orphanRatio.toFixed(2)}.`,
+    `blindSpot: ${report.blindSpot}`,
+  ]
+  if (report.truncationNote) lines.push(report.truncationNote)
+  for (const item of report.findings.slice(0, 20)) {
+    lines.push(`- ${item.severity.toUpperCase()} ${item.kind} ${item.id} ${item.paths.join(' | ')}: ${item.reason}`)
+  }
+  if (report.findings.length > 20) lines.push(`... ${report.findings.length - 20} more omitted`)
   return lines.join('\n')
 }
 

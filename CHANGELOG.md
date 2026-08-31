@@ -2,6 +2,19 @@
 
 本文件记录文脉 Wenmai 的公开变更。版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 新增
+
+- `wenmai_review` / `/wenmai review`：只读审视（源漂移传播到编译页、词法重复、冲突候选、结构问题、健康度）。findings 可 ack / snooze / wontfix
+- `wenmai_written` 改为 NEW / REVIEW / DUPLICATE 三态，并给出相似度与重叠片段
+
+### 说明
+
+- 词法查重声明盲区：同一论点换词重写可能检不出
+- 内容默认不出本机；review 不改编译页、不改 `raw/`
+
+
 ## [0.2.0] - 2026-08-24
 
 降低安装门槛：可用 npm 包安装；支持目录批量 ingest（默认 dry-run）。

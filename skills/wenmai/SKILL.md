@@ -28,10 +28,11 @@ description: "文脉 Wenmai: compile a writer's articles, scripts, copy, and doc
 | `wenmai_status` | 是否已初始化、页数、sourceRoots |
 | `wenmai_init` | 按领域创建目录与 SCHEMA / index / log |
 | `wenmai_ingest` | 把一篇文件、粘贴文本或整个目录落入 `raw/`（不可变）。目录默认 dry-run |
-| `wenmai_written` | 查编译页 + 原文目录：写过没有 |
+| `wenmai_written` | 查编译页 + 原文目录：写过没有。返回 NEW / REVIEW / DUPLICATE |
 | `wenmai_search` | 在文脉内词法搜索 |
 | `wenmai_read` / `wenmai_write` | 读/写相对路径；write 拒绝 `raw/` |
 | `wenmai_lint` | 只读体检，不自动修复 |
+| `wenmai_review` | 只读审视（漂移传播、重复、冲突候选、结构），不改页 |
 | `wenmai_config` | 查看或增减额外原文目录；默认已含当前会话工作区 |
 | `wenmai_graph` | 生成 Obsidian 式关联图，写出 `graph.html` |
 
@@ -53,6 +54,10 @@ ingest 的 `kind`：`articles`（文章/博客/推文）、`scripts`（视频脚
 ## Lint
 
 发现问题只报告。修复用 `wenmai_write` 改编译页，不要改 `raw/`。
+
+## Review
+
+`wenmai_review` 定期审视编译页：原文哈希漂移会标到引用它的编译页、词法重复、冲突候选、孤立/超长/目录不一致。只报告。ack / snooze / wontfix 写入 `review-state.json`。词法方法抓不到换词重写。
 
 ## 关联图
 

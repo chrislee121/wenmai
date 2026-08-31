@@ -286,6 +286,17 @@ pnpm build
 pnpm accept
 ```
 
+### 发 npm
+
+推送 tag `vX.Y.Z`（须与 `package.json` 的 `version` 一致）后，GitHub Actions 会跑测试并 `npm publish`。不往仓库里放 npm token。
+
+第一次要用自动发版时，在 [npm 包设置](https://www.npmjs.com/package/dsh-wenmai) 里加 **Trusted Publisher**：
+
+- Organization / user：`chrislee121`
+- Repository：`wenmai`
+- Workflow filename：`publish.yml`（必须带 `.yml` 后缀，大小写一致）
+- Environment：留空
+
 ## 许可
 
 MIT

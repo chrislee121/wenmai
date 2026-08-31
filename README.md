@@ -40,17 +40,9 @@
 
 ### 1. 安装插件
 
-需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
+npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.2.0**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
 
-本机若没有 `dsh` 命令：
-
-```sh
-npx --yes @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add dsh-wenmai
-npx --yes @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
-npx --yes @deepseek-ai/dsh@0.1.0-rc.8 web
-```
-
-已安装 CLI 时：
+已安装 `dsh` 时：
 
 ```sh
 dsh plugin --profile web add dsh-wenmai
@@ -58,9 +50,23 @@ dsh --profile web --dump-config
 dsh web
 ```
 
+本机若没有 `dsh` 命令，用 npx 装插件并启动（与官方文档一致，会拉当前的 `@deepseek-ai/dsh`）：
+
+```sh
+npx --yes @deepseek-ai/dsh plugin --profile web add dsh-wenmai
+npx --yes @deepseek-ai/dsh --profile web --dump-config
+npx --yes @deepseek-ai/dsh web
+```
+
+若要钉死已测过的宿主版本，把上面的 `@deepseek-ai/dsh` 换成 `@deepseek-ai/dsh@0.1.0-rc.8`。
+
 `dump-config` 里应出现 `dsh-wenmai` 层和 `id: wenmai`。浏览器打开 <http://127.0.0.1:3080>。
 
-从源码开发时，仍可用本地路径：`dsh plugin --profile web add /path/to/wenmai`。
+从本仓库源码开发时，才用本地路径（改 TypeScript 后执行 `pnpm build` 并重启 `dsh web`）：
+
+```sh
+dsh plugin --profile web add /path/to/wenmai
+```
 
 默认数据目录是 `~/wenmai`。若该目录还不存在、但本机已有 `~/tongjian`，会自动沿用旧目录。卸载插件不会删除文脉数据：
 
@@ -98,8 +104,6 @@ dsh plugin --profile web remove dsh-wenmai
 - `root`：文脉数据根，默认 `~/wenmai`
 - `sourceRoots`：额外扫描根，叠加在会话工作区之上
 - 不要把家目录整盘配进去
-
-改 TypeScript 后执行 `pnpm build` 并重启 `dsh web`。
 
 ### 4. 初始化
 

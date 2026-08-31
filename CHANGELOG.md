@@ -2,10 +2,6 @@
 
 本文件记录文脉 Wenmai 的公开变更。版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
-
-- 推送 `v*` tag 时由 GitHub Actions 自动 `npm publish`（Trusted Publishing，不存 token）
-
 ## [0.3.0] - 2026-08-31
 
 动笔前拦住已写过的选题；普通对话即可调用，不必点名工具。

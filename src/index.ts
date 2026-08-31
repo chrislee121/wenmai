@@ -107,14 +107,20 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
     name: 'tool:wenmai',
     order: 116,
     text: [
-      '文脉 Wenmai 是文字工作者的编译型知识库：raw/ 保存原文（文章、脚本、文案、文档等），entities/concepts 是编译后的页面。',
-      '- 先 wenmai_status / 阅读开局定向，再 ingest、query 或 lint。',
-      '- 查「我写过没有」用 wenmai_written，不要凭记忆回答。结论是 NEW / REVIEW / DUPLICATE 三态；换词重写可能漏检。',
-      '- 审视重复/冲突/过期/结构用 wenmai_review，只报告不改页。ack/snooze/wontfix 写入 review-state.json。',
-      '- 看页面关联用 wenmai_graph，会扫描文脉编译页和当前工作区文章，写出可在浏览器打开的 graph.html。',
-      '- 原文扫描默认用当前会话工作区；额外目录用 wenmai_config 添加，或写在插件 sourceRoots。',
-      '- wenmai_ingest 只落 raw/；目录 ingest 默认 dry-run，用户确认后再 dryRun:false。用 wenmai_write 写编译页，不要对整批自动编译。',
-      '- 禁止修改 raw/。lint 只报告，不自动修复。',
+      '文脉 Wenmai 是文字工作者的编译型知识库：raw/ 保存原文，entities/concepts 是编译页。',
+      '用户用自然语言说目标即可，不必说出工具名。由你根据意图选工具，不要反过来让用户记 wenmai_*。',
+      '意图对照（即使用户没点名也要调用）：',
+      '- 写过没有 / 会不会撞稿 / 这个选题做过吗 → wenmai_written（禁止凭记忆或闲聊印象回答）',
+      '- 库在不在 / 有多少页 / 文脉状态 → wenmai_status',
+      '- 初始化 / 建库 / 第一次用 → wenmai_init',
+      '- 收录这篇 / 存进文脉 / 吃掉这份稿 / 扫这个目录 → wenmai_ingest（目录默认 dry-run，用户确认后再写入；只落 raw/，不要整批自动编译）',
+      '- 文脉里搜 / 查某个概念 / 读那一页 → wenmai_search 再 wenmai_read',
+      '- 写成概念页 / 更新编译页 / 记进目录 → wenmai_write（禁止写 raw/；补 frontmatter、wikilinks、index、log）',
+      '- 体检 / 断链 / 缺字段 → wenmai_lint（只报告不自动修）',
+      '- 重复、过期、冲突、知识库乱不乱 → wenmai_review（只报告；ack/snooze 写入 review-state.json）',
+      '- 关联图 / 知识图谱 → wenmai_graph（不要每轮都跑）',
+      '- 再扫一个文件夹（工作区之外）→ wenmai_config（须用户确认路径；禁止扫家目录）',
+      '硬规则：不修改 raw/；不编造 sources；不负责抓网页或解析 PDF。written 为 NEW/REVIEW/DUPLICATE 三态，换词重写可能漏检。',
     ].join('\n'),
   })
 
@@ -126,7 +132,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   registerTool(ctx, {
       name: 'wenmai_status',
-      description: 'Report whether 文脉 is initialized, page/raw counts, and sourceRoots readability.',
+      description: '文脉是否已初始化、页数、原文数。用户说「文脉状态 / 库在不在 / 有多少页」时调用，不必等他们说出本工具名。',
       parameters: {},
       async execute(_args, exec) {
         throwIfAborted(exec.signal)
@@ -140,7 +146,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   registerTool(ctx, {
       name: 'wenmai_init',
-      description: 'Create the 文脉 directory tree, SCHEMA.md, index.md, and log.md for a domain.',
+      description: '按领域创建文脉目录与 SCHEMA / index / log。用户说「初始化 / 建库 / 第一次用文脉」时调用。',
       parameters: {
         domain: { type: 'string', required: true, description: 'What this 文脉 covers, e.g. articles, video scripts, copy, and work docs' },
       },
@@ -159,7 +165,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
   registerTool(ctx, {
       name: 'wenmai_ingest',
       description:
-        'Copy sources into raw/ (immutable). Single file: filePath and/or content. Directory: dir (defaults to dry-run). Compilation is a later wenmai_write step; do not auto-compile a batch.',
+        '把成稿复制进 raw/（之后不可改）。用户说「收录 / 存进文脉 / 吃掉这篇 / 扫这个目录」时调用。单篇给 filePath 或 content；目录给 dir，默认 dry-run，确认后再写入。不要整批自动编译。',
       parameters: {
         filePath: { type: 'string', description: 'Absolute or relative path to a local markdown/text file' },
         content: { type: 'string', description: 'Pasted source text when not ingesting a file' },
@@ -216,7 +222,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
   registerTool(ctx, {
       name: 'wenmai_written',
       description:
-        'Check whether a topic was already written before drafting. Returns NEW / REVIEW / DUPLICATE plus similar compiled pages and source files. Lexical only: paraphrases may be missed.',
+        '选题防撞：这篇是不是已经写过。用户说「写过没有 / 会不会撞稿 / 这个选题做过吗」时必须调用，禁止凭记忆回答。返回 NEW / REVIEW / DUPLICATE。词法查重，换词重写可能漏。',
       parameters: {
         query: { type: 'string', required: true, description: 'Topic, product, or title fragment' },
         limit: { type: 'number', description: 'Max hits, default 20' },
@@ -239,7 +245,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   registerTool(ctx, {
       name: 'wenmai_search',
-      description: 'Lexical search over 文脉 markdown (compiled pages and raw sources).',
+      description: '在文脉编译页和 raw/ 里做词法搜索。用户说「文脉里搜 / 查一下某某概念」时调用。',
       parameters: {
         query: { type: 'string', required: true, description: 'Search query' },
         limit: { type: 'number', description: 'Max hits, default 20' },
@@ -257,7 +263,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   registerTool(ctx, {
       name: 'wenmai_read',
-      description: 'Read a file under the 文脉 root by relative path, e.g. concepts/deepseek-harness.md.',
+      description: '按相对路径读文脉里的文件。搜到路径后，用户要看正文时调用。',
       parameters: {
         path: { type: 'string', required: true, description: 'Relative path under 文脉 root' },
         offset: { type: 'number', description: 'Start line (0-based)' },
@@ -275,7 +281,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   registerTool(ctx, {
       name: 'wenmai_write',
-      description: 'Write a compiled page under 文脉 root. Refuses raw/. Optional log entry and index update.',
+      description: '写或更新编译页（概念/实体）。用户说「写成概念页 / 更新这一页 / 记进目录」时调用。禁止写入 raw/。',
       parameters: {
         path: { type: 'string', required: true, description: 'Relative path such as concepts/foo.md' },
         content: { type: 'string', required: true, description: 'Full markdown including YAML frontmatter' },
@@ -299,7 +305,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   registerTool(ctx, {
       name: 'wenmai_lint',
-      description: 'Read-only health check: orphans, broken wikilinks, missing frontmatter, raw sha256 drift.',
+      description: '只读体检：断链、缺 frontmatter、raw 哈希漂移。用户说「体检 / 断链 / 页面乱不乱」时调用。不自动修复。',
       parameters: {},
       async execute(_args, exec) {
         throwIfAborted(exec.signal)
@@ -314,7 +320,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
   registerTool(ctx, {
       name: 'wenmai_review',
       description:
-        'Read-only knowledge review: source drift on compiled pages, duplicates, conflict candidates, structure, and health metrics. Does not edit pages. Optional ack/snooze/wontfix by finding id.',
+        '只读审视：原文变更是否传到编译页、重复、冲突候选、结构问题。用户说「有没有重复 / 过期 / 冲突 / 知识库健康吗」时调用。不改页面。',
       parameters: {
         includeDismissed: { type: 'boolean', description: 'Include ack/snooze/wontfix findings, default false' },
         ttlDays: { type: 'number', description: 'updated TTL in days, default 180' },
@@ -345,7 +351,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
   registerTool(ctx, {
       name: 'wenmai_config',
       description:
-        'Show or update extra sourceRoots. The current session workspace is always included by default. Use add/remove/set for additional directories (persisted in the 文脉 vault).',
+        '查看或增减额外原文目录。用户说「再扫这个文件夹 / 加上我的脚本目录」且已确认路径时调用。默认已含当前工作区；禁止扫家目录。',
       parameters: {
         add: { type: 'string', description: 'Add one extra source directory (absolute or ~/path)' },
         remove: { type: 'string', description: 'Remove one extra source directory previously added by this tool' },
@@ -375,7 +381,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
   registerTool(ctx, {
       name: 'wenmai_graph',
       description:
-        'Build an Obsidian-style knowledge graph from compiled pages plus markdown in the current workspace / sourceRoots. Writes graph.html under the 文脉 root.',
+        '生成知识关联图 graph.html。用户说「关联图 / 知识图谱 / 打开关系图」时调用。不要每轮都跑。',
       parameters: {
         focus: { type: 'string', description: 'Optional page slug or title for a local graph' },
         depth: { type: 'number', description: 'Local graph hop depth, default 2' },

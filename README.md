@@ -86,9 +86,9 @@ dsh plugin --profile web remove dsh-wenmai
 
 **让 Agent 配：**
 
-> 用 wenmai_config 把 `~/Documents/scripts` 加成额外原文目录
+> 以后也扫 `~/Documents/scripts` 这个文件夹
 
-会写入文脉库里的 `source-roots.json`。也可以让 Agent `remove` 或 `set`（逗号分隔，空字符串清空额外目录）。当前会话工作区始终在扫描列表里。
+会写入文脉库里的 `source-roots.json`。当前会话工作区始终在扫描列表里。要去掉或换成别的目录，直接说「别扫那个了」或「改成只扫这些」。
 
 **或写在插件配置里**（profile 的 `cordis.patch.yml`，按 `id` 整行替换，不会深合并）：
 
@@ -109,7 +109,7 @@ dsh plugin --profile web remove dsh-wenmai
 
 对新库说一句：
 
-> 用 wenmai_init 初始化文脉，领域是「个人文字工作：文章、脚本、文案、文档」。
+> 按「个人文字工作：文章、脚本、文案、文档」初始化文脉。
 
 或在输入框用斜杠命令看状态：先输入 `/wenmai` 选中命令，再补参数发送。
 
@@ -121,114 +121,89 @@ dsh plugin --profile web remove dsh-wenmai
 
 ### 5. 日常三件事
 
-对 Agent 直接说人话即可，不必自己拼工具参数。
+对 Agent **说人话**就行，不必记工具名。插件会告诉它什么意图该调什么工具。
 
 **查有没有写过**
 
-> 用 wenmai_written 查一下「某某选题」我写过没有
+> 这个选题我写过没有：「本地 Web UI 三步打开」
 
 **收录一篇成稿**
 
-> 把这篇 ingest 进文脉，再编译成概念页：  
+> 把这篇收进文脉，再整理成概念页：  
 > `/path/to/your/draft.md`
 
-**收录整个文稿目录（先 dry-run）**
+**收录整个文稿目录（会先列出清单，你点头后再写入）**
 
-> 用 wenmai_ingest 扫一下 `~/Documents/writing`，先 dry-run 看会收哪些文件
+> 扫一下 `~/Documents/writing`，先告诉我会收哪些文件
 
-确认清单后再说「dryRun 设成 false」。只落 `raw/`，不会自动写概念页。一次最多 600 篇；更多就拆目录再收。
+确认后再说「按这个清单收进去」。原文会进 `raw/`（之后不能改），概念页要另说「整理成概念页」。一次最多 600 篇；更多就拆目录再收。
 
-流程：`ingest` 只复制到 `raw/`（之后不可改）→ `write` 写 `concepts/` 或 `entities/` → 更新 `index.md` 和 `log.md`。
+按材料类型，Agent 会放到对应子目录（你也可以随口说「这是脚本 / 文章 / 纪要」）：
 
-按材料类型指定 `kind`（对应 `raw/` 子目录）：
-
-| kind | 放什么 |
+| 你口头说的 | 实际进哪个目录 |
 |---|---|
-| `articles` | 文章、博客、推文长文 |
-| `scripts` | 视频脚本、口播稿、分镜 |
-| `docs` | 工作文档、SOP、会议纪要、讲义 |
-| `transcripts` | 录音/成片转写 |
-| `papers` | 论文、白皮书、长研究 |
-| `workspace` | 草稿、素材、未分类 |
-| `assets` | 附件说明 |
+| 文章、博客、推文 | `raw/articles/` |
+| 视频脚本、口播、分镜 | `raw/scripts/` |
+| 工作文档、SOP、纪要、讲义 | `raw/docs/` |
+| 录音/成片转写 | `raw/transcripts/` |
+| 论文、白皮书 | `raw/papers/` |
+| 草稿、素材、还没分类 | `raw/workspace/` |
+| 附件说明 | `raw/assets/` |
 
 **查阅**
 
-> 在文脉里搜关键词，读一下 `concepts/某个概念.md`
+> 文脉里搜一下「Harness」，把相关概念页读给我听
 
 ## 和 AI Agent 怎么用
 
-文脉是 DeepSeek Harness 插件：你在 Web UI 里跟 Agent 说话，Agent 调下面的工具读写 `~/wenmai`。开局会注入 SCHEMA、目录和最近日志，**不必每轮做一遍 RAG**。
+你在 DeepSeek Harness 的对话框里正常说话。**不用点名 `wenmai_*`。** 开局会自动带上 SCHEMA、目录和最近日志，Agent 先看这些，再动手。
 
-### Agent 开局会看到什么
+### 开局它已经知道什么
 
-会话开始时插件会注入一段「文脉定向」：
+- 这个库覆盖什么、页面怎么写（`SCHEMA.md`）
+- 现在有哪些概念 / 实体（`index.md`）
+- 最近写过什么（`log.md` 尾部）
 
-- `SCHEMA.md`：领域、frontmatter、标签、何时建页
-- `index.md`：现有实体 / 概念 / 对比 / 查询
-- `log.md` 尾部：最近写入
+### 你怎么说
 
-所以 Agent 先读这份定向，再决定要不要 `wenmai_status` / `wenmai_search`。你也可以 `/wenmai orient` 再看一遍。
-
-### 你怎么下指令
-
-用自然语言点名工具，或只说目标。例如：
-
-| 你想做的事 | 可以这样说 |
+| 你想做的事 | 直接这么说 |
 |---|---|
 | 看库在不在、有多少页 | 「看一下文脉状态」 |
-| 第一次建库 | 「用 wenmai_init 初始化，领域是……」 |
+| 第一次建库 | 「按我写文章、脚本、文案这个用途，初始化文脉」 |
 | 选题防撞 | 「这个选题我写过没有？」 |
-| 收录成稿 | 「把这篇 ingest 再编译成概念页：`/绝对路径/draft.md`」 |
-| 收录整个目录 | 「先 dry-run 扫一下这个文稿目录会 ingest 哪些文件」 |
-| 查概念 | 「在文脉里搜 xxx，读一下对应概念页」 |
-| 体检 | 「对文脉跑一遍 lint」 |
+| 收录成稿 | 「把这篇收进文脉，再整理成概念页：`/绝对路径/draft.md`」 |
+| 收录整个目录 | 「先列出这个文稿目录会收哪些文件，别急着写入」 |
+| 查概念 | 「文脉里搜 xxx，读一下对应那页」 |
+| 体检 | 「帮我体检一下文脉，有没有断链」 |
+| 重复 / 过期 / 冲突 | 「看看知识库有没有重复或过期」 |
 | 看关联 | 「生成关联图并打开」 |
-| 加原文目录 | 「用 wenmai_config 把 `~/Documents/scripts` 加成额外原文目录」 |
+| 加原文目录 | 「以后也扫 `~/Documents/scripts` 这个文件夹」 |
 
-斜杠命令适合你自己点：`/wenmai` 再补 `status` / `lint` / `orient` / `graph`。复杂读写仍走对话里的工具。
+斜杠命令是可选快捷方式，给想自己点的人：输入 `/wenmai` 再选 `status` / `lint` / `orient` / `graph` / `review`。日常用对话即可。
 
-### Agent 必须遵守的规则
+### Agent 会自己遵守的规则
 
-把这些当作给 Agent 的站规（插件 system prompt 里也有）：
+这些不用你提醒，插件已经写进系统提示：
 
-1. **「写过没有」必须走 `wenmai_written`**，不要凭训练记忆或闲聊印象回答。
-2. **`raw/` 只进不出**：`wenmai_ingest` 之后原文不可改；纠错写在 `concepts/` / `entities/` 等编译页。
-3. **`wenmai_write` 禁止写 `raw/`**。新编译页要有 YAML frontmatter，至少 2 个 `[[wikilinks]]`，并视情况 `updateIndex` + 写 log。
-4. **lint 只报告不自动修**。要修再用 `wenmai_write`。
-5. **不扫描家目录**。默认只扫当前会话工作区；额外路径由你确认，或 `wenmai_config` / 插件 `sourceRoots`。
-6. **不编造 sources 路径**，不负责抓网页或解析 PDF。有正文之后再 ingest。
-7. **关联图按需生成**，不要每轮都跑 `wenmai_graph`。
+1. 问「写过没有」必须查库，不能凭印象回答
+2. 原文进 `raw/` 之后不能改；纠错写在概念页
+3. 新概念页要有标题等元数据、互链，并更新目录
+4. 体检和审视只报告，不擅自改文件
+5. 不扫描你家目录；额外文件夹必须你先点头
+6. 不编造原文路径，也不负责抓网页或解析 PDF
+7. 关联图按需生成，不会每句话都画一张
 
-### 推荐工作流
+### 常见流程（你只要说目标）
 
-**查询 / 选题防撞**
+**选题防撞：** 「写过没有」→ 若可能重合，它会列出旧稿让你看。
 
-1. 看开局定向里的 index
-2. `wenmai_written`（编译页 + 工作区文件名/标题）
-3. 需要细节再 `wenmai_search` → `wenmai_read`
-4. 基于编译页作答，引用 `[[页面]]`
+**收录一篇：** 「收进文脉」→ 你确认 → 「整理成概念页」。
 
-**收录一篇**
+**收录一批：** 「先列出会收哪些」→ 你确认「按清单收」→ 需要成页的再一篇篇说「整理成概念页」，不会整批自动写。
 
-1. `wenmai_ingest`（文件路径或粘贴正文 + `kind`）
-2. 在 index / 已有页里查有没有对应实体或概念
-3. `wenmai_write` 创建或更新编译页
-4. `updateIndex: true`，并写一条 log
+**体检：** 「体检一下」或「有没有重复过期」；要修再说修哪一页。
 
-**收录一批**
-
-1. `wenmai_ingest` 带 `dir`，默认 dry-run
-2. 看清单，用户确认后 `dryRun: false`
-3. 需要编译的页再逐篇 `wenmai_write`，不要整批自动编译
-
-**体检**
-
-1. `wenmai_lint`：缺 frontmatter、断链、孤儿页、raw 哈希漂移
-2. `wenmai_review`：漂移是否传到编译页、重复、冲突候选、结构问题
-3. 只改编译页，不改 `raw/`
-
-更短的操作说明在包内 `skills/wenmai/SKILL.md`，可复制或软链到 DSH 的 skills 扫描目录。
+给 Agent 的更短对照表在包内 `skills/wenmai/SKILL.md`（意图 → 工具）。人不用读。
 
 也可用 Obsidian 直接打开 `~/wenmai`。
 
@@ -258,15 +233,11 @@ dsh plugin --profile web remove dsh-wenmai
 
 类似 Obsidian 的知识图谱：文脉编译页的 `[[wikilinks]]`，加上当前工作区 / sourceRoots 里的 Markdown 文章（按目录成簇，并识别 wiki 链接和相对 `.md` 链接）。
 
-在 DSH 里：
+在 DSH 里可以说「生成关联图并打开」，或自己点：
 
 ```text
 /wenmai graph
 ```
-
-或对 Agent 说：
-
-> 用 wenmai_graph 生成关联图并打开
 
 会在文脉根目录写出 `graph.html`（例如 `file:///Users/你/wenmai/graph.html`）。浏览器里可拖拽、缩放、搜索；左上角可切换 **力导向** / **目录簇**。局部图可以带 `focus`（页面 slug）和 `depth`。
 
@@ -283,9 +254,9 @@ dsh plugin --profile web remove dsh-wenmai
 | `/wenmai graph` | 生成 `graph.html` 并用系统浏览器打开 |
 | `/wenmai graph <slug>` | 以某页为中心生成局部图 |
 
-## 工具
+## 工具（给开发者 / 想看参数的人）
 
-Agent 在对话里调用的工具如下。参数未写的表示可省略。
+日常对话不必记这些名字。Agent 根据你的意图自己选。参数未写的表示可省略。
 
 | 工具 | 做什么 | 主要参数 |
 |---|---|---|

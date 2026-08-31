@@ -1,6 +1,6 @@
 ---
 name: wenmai
-description: "文脉 Wenmai: compile a writer's articles, scripts, copy, and documents into an interlinked markdown knowledge base."
+description: "文脉 Wenmai: compile a writer's articles, scripts, copy, and documents into an interlinked markdown knowledge base. Users speak naturally and do not name tools."
 ---
 
 # 文脉 Wenmai
@@ -11,62 +11,55 @@ description: "文脉 Wenmai: compile a writer's articles, scripts, copy, and doc
 
 ## 何时使用
 
-- 用户要创建、摄入、查询或检查文脉 / 知识库
-- 用户问「这个选题 / 脚本 / 文案我写过没有」
+用户**不会**说出 `wenmai_*`。根据意图自己选工具：
+
+- 「写过没有 / 会不会撞稿 / 这个选题做过吗」
+- 「收进文脉 / 吃掉这篇 / 扫这个目录」
+- 「初始化 / 建库 / 文脉状态 / 有多少页」
+- 「搜一下 / 读那一页 / 整理成概念页」
+- 「体检 / 断链 / 有没有重复过期」
+- 「关联图 / 再扫这个文件夹」
 - 开局定向里已经出现 SCHEMA / index / log
 
-## 开局（每次会话先做）
+## 开局
 
-1. 读开局注入的 SCHEMA.md、index.md、近期 log.md
-2. 需要时再 `wenmai_status` 或 `wenmai_search`
-3. 然后才 ingest / write / 回答「写过没有」
+1. 先读注入的 SCHEMA.md、index.md、近期 log.md
+2. 再按用户这句话的意图调用工具
+3. 不要让用户改口去「点名工具」
 
-## 工具
+## 意图 → 工具
 
-| 工具 | 用途 |
+| 用户大概会说 | 调用 |
 |------|------|
-| `wenmai_status` | 是否已初始化、页数、sourceRoots |
-| `wenmai_init` | 按领域创建目录与 SCHEMA / index / log |
-| `wenmai_ingest` | 把一篇文件、粘贴文本或整个目录落入 `raw/`（不可变）。目录默认 dry-run |
-| `wenmai_written` | 查编译页 + 原文目录：写过没有。返回 NEW / REVIEW / DUPLICATE |
-| `wenmai_search` | 在文脉内词法搜索 |
-| `wenmai_read` / `wenmai_write` | 读/写相对路径；write 拒绝 `raw/` |
-| `wenmai_lint` | 只读体检，不自动修复 |
-| `wenmai_review` | 只读审视（漂移传播、重复、冲突候选、结构），不改页 |
-| `wenmai_config` | 查看或增减额外原文目录；默认已含当前会话工作区 |
-| `wenmai_graph` | 生成 Obsidian 式关联图，写出 `graph.html` |
+| 文脉状态 / 库在不在 / 有多少页 | `wenmai_status` |
+| 初始化 / 建库 / 第一次用 | `wenmai_init` |
+| 写过没有 / 撞稿 / 这个选题做过吗 | `wenmai_written`（禁止凭记忆） |
+| 收录 / 存进文脉 / 扫这个目录 | `wenmai_ingest`（目录默认 dry-run，确认后再写入） |
+| 文脉里搜 / 查某某概念 | `wenmai_search` → `wenmai_read` |
+| 写成概念页 / 更新这一页 | `wenmai_write`（禁止写 `raw/`） |
+| 体检 / 断链 | `wenmai_lint`（只报告） |
+| 重复、过期、冲突、知识库健康 | `wenmai_review`（只报告） |
+| 再扫这个文件夹（工作区之外） | `wenmai_config`（须用户确认路径） |
+| 关联图 / 知识图谱 | `wenmai_graph`（不要每轮都跑） |
 
-ingest 的 `kind`：`articles`（文章/博客/推文）、`scripts`（视频脚本/口播）、`docs`（工作文档/SOP/讲义）、`transcripts`（转写）、`papers`（论文/白皮书）、`workspace`（草稿/素材）、`assets`（附件说明）。
+ingest 目录对应：文章→`articles`，脚本/口播→`scripts`，文档/纪要→`docs`，转写→`transcripts`，论文→`papers`，草稿→`workspace`，附件说明→`assets`。用户随口说类型即可，不必说 `kind` 这个词。
 
-## Ingest
+## 收录
 
-1. `wenmai_ingest` 保存 raw，得到 sha256 与路径。目录模式先 dry-run，用户确认后再 `dryRun: false`。只落 `raw/`，不要对整批自动编译
+1. `wenmai_ingest` 保存 raw。目录先列出清单，用户确认后再写入。只落 `raw/`，不要对整批自动编译
 2. 在 index 和页面里查是否已有对应实体/概念
-3. 用 `wenmai_write` 创建或更新编译页（至少 2 个 `[[wikilinks]]`）
-4. `updateIndex: true`，并写 log
+3. 用户要整理成页时才 `wenmai_write`（至少 2 个 `[[wikilinks]]`，`updateIndex`，写 log）
 
-## Query
+## 查询
 
-1. 先看 index，必要时 `wenmai_search` / `wenmai_read`
-2. 基于编译页作答，引用 `[[页面]]`
-3. 有价值的综合可写入 `queries/` 或 `comparisons/`
-
-## Lint
-
-发现问题只报告。修复用 `wenmai_write` 改编译页，不要改 `raw/`。
-
-## Review
-
-`wenmai_review` 定期审视编译页：原文哈希漂移会标到引用它的编译页、词法重复、冲突候选、孤立/超长/目录不一致。只报告。ack / snooze / wontfix 写入 `review-state.json`。词法方法抓不到换词重写。
-
-## 关联图
-
-`wenmai_graph` 根据编译页 `[[wikilinks]]`、当前工作区 / sourceRoots 里的 Markdown、标签和 `sources` 生成 `graph.html`。局部图传 `focus` + `depth`。需要可视化时再生成，不要每轮都跑。
+1. 「写过没有」走 `wenmai_written`（NEW / REVIEW / DUPLICATE；换词重写可能漏）
+2. 细节再 `wenmai_search` / `wenmai_read`，引用 `[[页面]]`
 
 ## 硬规则
 
 - 不修改 `raw/`
-- 不凭记忆回答「写过没有」，走 `wenmai_written`
-- 不扫描家目录；默认用当前会话工作区，额外路径只使用用户确认或 `wenmai_config` / 插件 `sourceRoots`
-- 目录 ingest 默认 dry-run，用户确认后再写入
+- 不凭记忆回答「写过没有」
+- 不扫描家目录；额外路径只使用用户确认或已有配置
+- 目录收录默认先列清单，确认后再写入
 - 不编造 sources 路径
+- 不要要求用户说出工具名

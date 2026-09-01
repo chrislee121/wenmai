@@ -173,3 +173,34 @@ DeepSeek Harness 本地 Web UI。
     assert.equal(fresh.hits.length, 0)
   })
 })
+
+/** DeepSeek Harness snapshotJsonValue rejects undefined, NaN, -0, and non-plain objects. */
+function assertLosslessJson(value, loc = '$') {
+  if (value === undefined) throw new Error(`${loc} is undefined`)
+  if (typeof value === 'number' && (!Number.isFinite(value) || Object.is(value, -0))) {
+    throw new Error(`${loc} is not a lossless JSON number`)
+  }
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertLosslessJson(item, `${loc}[${index}]`))
+    return
+  }
+  if (typeof value === 'object') {
+    const proto = Object.getPrototypeOf(value)
+    if (proto !== Object.prototype && proto !== null) {
+      throw new Error(`${loc} is not a plain object`)
+    }
+    for (const [key, child] of Object.entries(value)) {
+      assertLosslessJson(child, `${loc}.${key}`)
+    }
+  }
+}
+
+test('review report omits undefined fields so Harness can snapshot it as lossless JSON', async () => {
+  await withVault(async (dir) => {
+    const report = await reviewVault(dir)
+    assert.equal(report.truncated, false)
+    assert.equal('truncationNote' in report, false)
+    assertLosslessJson(report)
+  })
+})

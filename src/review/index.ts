@@ -78,15 +78,16 @@ export async function reviewVault(root: string, options: ReviewOptions = {}): Pr
   })
   const metrics = computeMetrics(corpus, index, all)
 
-  return {
+  const report: ReviewReport = {
     ok: true,
     truncated: corpus.truncated,
-    truncationNote: corpus.truncated
-      ? `编译页超过 ${corpus.maxPages} 篇，只审查了前 ${corpus.maxPages} 篇，请拆目录或分批 review`
-      : undefined,
     blindSpot: LEXICAL_BLIND_SPOT,
     metrics,
     findingCount: findings.length,
     findings,
   }
+  if (corpus.truncated) {
+    report.truncationNote = `编译页超过 ${corpus.maxPages} 篇，只审查了前 ${corpus.maxPages} 篇，请拆目录或分批 review`
+  }
+  return report
 }

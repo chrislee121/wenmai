@@ -1,6 +1,6 @@
 # 文脉 Wenmai
 
-当前版本：**v0.3.0**
+当前版本：**v0.3.1**
 
 把写过的东西织成可查的文脉。
 
@@ -40,7 +40,7 @@
 
 ### 1. 安装插件
 
-npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.3.0**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
+npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.3.1**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
 
 已安装 `dsh` 时：
 
@@ -280,11 +280,13 @@ pnpm test
 pnpm build
 ```
 
-端到端验收（使用仓库内示例文稿，不读取你的私人目录）：
+端到端功能测试（使用仓库内示例文稿，不读取你的私人目录）：
 
 ```sh
 pnpm accept
 ```
+
+发版前必须两者都过：`pnpm test` 与 `pnpm accept`（或一条 `pnpm release-check`）。推送版本 tag 后，GitHub Actions 会先跑 `release-check` 再发 npm。
 
 ## 许可
 

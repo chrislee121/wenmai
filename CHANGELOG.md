@@ -2,6 +2,14 @@
 
 本文件记录文脉 Wenmai 的公开变更。版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.1] - 2026-09-01
+
+修复 DeepSeek Harness 里调用知识库审视失败。
+
+### 修复
+
+- `wenmai_review` 不再返回 `undefined` 字段，Harness 能正常接收工具结果（不再报 `value is not lossless JSON`）
+
 ## [0.3.0] - 2026-08-31
 
 动笔前拦住已写过的选题；普通对话即可调用，不必点名工具。
@@ -55,6 +63,7 @@
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 
+[0.3.1]: https://github.com/chrislee121/wenmai/releases/tag/v0.3.1
 [0.3.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.3.0
 [0.2.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.2.0
 [0.1.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.1.0

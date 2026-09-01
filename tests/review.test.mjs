@@ -7,6 +7,7 @@ import { ingestText, initVault, writePage } from '../dist/store.js'
 import { lintVault } from '../dist/lint.js'
 import { reviewVault } from '../dist/review/index.js'
 import { checkWritten } from '../dist/written.js'
+import { assertLosslessJson } from './helpers/lossless-json.mjs'
 
 async function withVault(run) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'wenmai-review-'))
@@ -171,5 +172,14 @@ DeepSeek Harness 本地 Web UI。
     const fresh = await checkWritten(dir, [], '拓扑量子纠错码')
     assert.equal(fresh.verdict, 'NEW')
     assert.equal(fresh.hits.length, 0)
+  })
+})
+
+test('review report omits undefined fields so Harness can snapshot it as lossless JSON', async () => {
+  await withVault(async (dir) => {
+    const report = await reviewVault(dir)
+    assert.equal(report.truncated, false)
+    assert.equal('truncationNote' in report, false)
+    assertLosslessJson(report)
   })
 })

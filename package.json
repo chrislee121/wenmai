@@ -35,7 +35,8 @@
     "prepare": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.json && node --test tests/*.test.mjs",
-    "accept": "tsc -p tsconfig.json && node scripts/accept-e2e.mjs"
+    "accept": "tsc -p tsconfig.json && node scripts/accept-e2e.mjs",
+    "release-check": "npm test && node scripts/accept-e2e.mjs"
   },
   "keywords": [
     "dsh-plugin",

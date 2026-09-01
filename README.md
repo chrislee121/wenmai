@@ -280,11 +280,13 @@ pnpm test
 pnpm build
 ```
 
-端到端验收（使用仓库内示例文稿，不读取你的私人目录）：
+端到端功能测试（使用仓库内示例文稿，不读取你的私人目录）：
 
 ```sh
 pnpm accept
 ```
+
+发版前必须两者都过：`pnpm test` 与 `pnpm accept`（或一条 `pnpm release-check`）。推送版本 tag 后，GitHub Actions 会先跑 `release-check` 再发 npm。
 
 ## 许可
 

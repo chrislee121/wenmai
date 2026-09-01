@@ -107,3 +107,35 @@ export function slugify(input: string): string {
     .slice(0, 80)
   return slug || 'untitled'
 }
+
+export function isArchived(frontmatter: Frontmatter): boolean {
+  const value = frontmatter.archived
+  return value === true || value === 'true' || value === 'yes'
+}
+
+function formatYamlValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '[]'
+    return `[${value.map((item) => String(item)).join(', ')}]`
+  }
+  if (value === true) return 'true'
+  if (value === false) return 'false'
+  return String(value)
+}
+
+export function serializeDocument(frontmatter: Frontmatter, body: string): string {
+  const preferred = ['title', 'created', 'updated', 'type', 'tags', 'sources', 'archived']
+  const lines = ['---']
+  const seen = new Set<string>()
+  for (const key of preferred) {
+    if (!(key in frontmatter) || frontmatter[key] === undefined) continue
+    lines.push(`${key}: ${formatYamlValue(frontmatter[key])}`)
+    seen.add(key)
+  }
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (seen.has(key) || value === undefined) continue
+    lines.push(`${key}: ${formatYamlValue(value)}`)
+  }
+  lines.push('---', '')
+  return `${lines.join('\n')}${body.replace(/^\n+/, '')}`
+}

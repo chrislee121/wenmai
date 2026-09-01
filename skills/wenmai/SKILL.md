@@ -18,6 +18,7 @@ description: "文脉 Wenmai: compile a writer's articles, scripts, copy, and doc
 - 「初始化 / 建库 / 文脉状态 / 有多少页」
 - 「搜一下 / 读那一页 / 整理成概念页」
 - 「体检 / 断链 / 有没有重复过期」
+- 「合并这两页 / 改名 / 归档 / 拆开」
 - 「关联图 / 再扫这个文件夹」
 - 开局定向里已经出现 SCHEMA / index / log
 
@@ -39,6 +40,7 @@ description: "文脉 Wenmai: compile a writer's articles, scripts, copy, and doc
 | 写成概念页 / 更新这一页 | `wenmai_write`（禁止写 `raw/`） |
 | 体检 / 断链 | `wenmai_lint`（只报告） |
 | 重复、过期、冲突、知识库健康 | `wenmai_review`（只报告） |
+| 合并 / 改名 / 归档 / 拆开 | `wenmai_refactor`（默认 dry-run，确认后再写入；禁止改 `raw/`） |
 | 再扫这个文件夹（工作区之外） | `wenmai_config`（须用户确认路径） |
 | 关联图 / 知识图谱 | `wenmai_graph`（不要每轮都跑） |
 

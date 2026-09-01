@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 文脉端到端验收：init → ingest 示例文稿 → write 编译页 → written 三态 → review → search/read/lint/graph
+ * 文脉端到端验收：init → ingest → write → written 三态 → review → refactor rename → search/read/lint/graph
  * 使用仓库内脱敏 fixture，不读取私人目录。传 --live 则写 ~/wenmai。
  */
 import assert from 'node:assert/strict'
@@ -16,6 +16,7 @@ import { searchVault } from '../dist/search.js'
 import { ingestDirectory } from '../dist/ingest-dir.js'
 import { ingestText, initVault, readPage, status, writePage } from '../dist/store.js'
 import { reviewVault } from '../dist/review/index.js'
+import { refactorVault } from '../dist/refactor/index.js'
 import { checkWritten, findWritten } from '../dist/written.js'
 import { assertLosslessJson } from '../tests/helpers/lossless-json.mjs'
 
@@ -72,6 +73,20 @@ sources: [${ingested.rawPath}]
     updateIndex: true,
   })
   assert.equal(writtenPage.ok, true)
+  await writePage(
+    root,
+    'concepts/workflow.md',
+    `---
+title: Workflow
+type: concept
+---
+
+# Workflow
+
+Depends on [[local-web-ui]].
+`,
+    { updateIndex: true },
+  )
 
   const hits = await findWritten(root, SOURCE_ROOTS, 'Web UI')
   assert.ok(hits.some((hit) => hit.kind === 'page'))
@@ -95,10 +110,30 @@ sources: [${ingested.rawPath}]
   assertLosslessJson(review)
   assert.equal(await readFile(path.join(root, ingested.rawPath), 'utf8'), rawBefore)
 
+  const renameDry = await refactorVault(root, {
+    op: 'rename',
+    source: 'concepts/local-web-ui.md',
+    target: 'local-web-ui-guide',
+    dryRun: true,
+  })
+  assert.equal(renameDry.dryRun, true)
+  assert.equal(renameDry.inbound.some((item) => item.from === 'concepts/workflow.md'), true)
+  assertLosslessJson(renameDry)
+  const renamed = await refactorVault(root, {
+    op: 'rename',
+    source: 'concepts/local-web-ui.md',
+    target: 'local-web-ui-guide',
+    dryRun: false,
+  })
+  assert.equal(renamed.applied, true)
+  const workflow = await readFile(path.join(root, 'concepts/workflow.md'), 'utf8')
+  assert.match(workflow, /\[\[local-web-ui-guide\]\]/)
+  assert.equal(await readFile(path.join(root, ingested.rawPath), 'utf8'), rawBefore)
+
   const search = await searchVault(root, '3080')
   assert.ok(search.length > 0)
 
-  const read = await readPage(root, 'concepts/local-web-ui.md')
+  const read = await readPage(root, 'concepts/local-web-ui-guide.md')
   assert.match(read.content, /Local Web UI/)
 
   await assert.rejects(() => writePage(root, 'raw/articles/nope.md', 'x'), /raw/)
@@ -128,6 +163,7 @@ sources: [${ingested.rawPath}]
         writtenHits: hits.length,
         writtenVerdicts: { duplicate: duplicate.verdict, fresh: fresh.verdict },
         review: { findings: review.findingCount, pages: review.metrics.pageCount },
+        refactor: { op: renamed.op, applied: renamed.applied },
         searchHits: search.length,
         lint: { errors: lint.errorCount, warnings: lint.warningCount },
         graph: { nodes: graph.nodeCount, edges: graph.edgeCount, articles: graph.articleCount },

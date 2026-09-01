@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { extractWikilinks, parseFrontmatter } from './frontmatter.js'
+import { extractWikilinks, isArchived, parseFrontmatter } from './frontmatter.js'
 import { PAGE_DIRS } from './layout.js'
 import { posixRel } from './paths.js'
 import { listMarkdownFiles } from './store.js'
@@ -29,6 +29,7 @@ export interface LinkedPage {
   body: string
   tags: string[]
   updated?: string
+  archived: boolean
   lineCount: number
 }
 
@@ -91,6 +92,7 @@ export async function loadLinkedPages(root: string, files: string[]): Promise<Li
       body: parsed.body,
       tags: asStringList(parsed.frontmatter.tags),
       updated,
+      archived: isArchived(parsed.frontmatter),
       lineCount: text.split('\n').length,
     })
   }

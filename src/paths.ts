@@ -112,3 +112,8 @@ export async function assertNoSymlinkEscape(root: string, abs: string): Promise<
 export function posixRel(root: string, abs: string): string {
   return path.relative(path.resolve(root), abs).split(path.sep).join('/')
 }
+
+export function isRawRel(rel: string): boolean {
+  const normalized = rel.replace(/\\/g, '/').replace(/^\.\//, '').trim()
+  return normalized === 'raw' || normalized.startsWith('raw/')
+}

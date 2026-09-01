@@ -98,6 +98,7 @@ export async function checkWritten(
   const hits: WrittenHit[] = []
 
   for (const page of pages) {
+    if (page.archived) continue
     const haystack = page.body.slice(0, 2000)
     const { match, similarity } = classify(trimmed, page.title, `${path.basename(page.abs)} ${haystack}`)
     if (!match) continue

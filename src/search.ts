@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { parseFrontmatter } from './frontmatter.js'
+import { isArchived, parseFrontmatter } from './frontmatter.js'
 import { PAGE_DIRS, RAW_DIRS } from './layout.js'
 import { posixRel } from './paths.js'
 import { listMarkdownFiles } from './store.js'
@@ -35,6 +35,7 @@ async function nodeSearch(root: string, query: string, limit: number): Promise<S
   for (const abs of files) {
     const text = await readFile(abs, 'utf8')
     const parsed = parseFrontmatter(text)
+    if (isArchived(parsed.frontmatter) && PAGE_DIRS.some((dir) => posixRel(root, abs).startsWith(`${dir}/`))) continue
     const haystack = `${parsed.frontmatter.title ?? ''} ${path.basename(abs)} ${parsed.body}`
     const lower = haystack.toLowerCase()
     if (!lower.includes(q)) continue
@@ -94,6 +95,24 @@ export async function searchVault(root: string, query: string, limit = 20): Prom
   const trimmed = query.trim()
   if (!trimmed) return []
   const viaRg = ripgrepSearch(root, trimmed, limit)
-  if (viaRg) return viaRg
-  return nodeSearch(root, trimmed, limit)
+  const hits = viaRg ?? (await nodeSearch(root, trimmed, limit))
+  return filterArchivedHits(root, hits)
+}
+
+async function filterArchivedHits(root: string, hits: SearchHit[]): Promise<SearchHit[]> {
+  const kept: SearchHit[] = []
+  for (const hit of hits) {
+    if (!PAGE_DIRS.some((dir) => hit.path.startsWith(`${dir}/`))) {
+      kept.push(hit)
+      continue
+    }
+    try {
+      const text = await readFile(path.join(root, hit.path), 'utf8')
+      if (isArchived(parseFrontmatter(text).frontmatter)) continue
+    } catch {
+      /* keep the hit if the file cannot be read */
+    }
+    kept.push(hit)
+  }
+  return kept
 }

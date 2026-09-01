@@ -22,6 +22,7 @@ import { ingestDirectory } from './ingest-dir.js'
 import { ingestText, initVault, readPage, status, titleFromMarkdown, writePage } from './store.js'
 import { OBJECT_OUTPUT, parametersSchema } from './tool-def.js'
 import { reviewVault } from './review/index.js'
+import { refactorVault } from './refactor/index.js'
 import { checkWritten } from './written.js'
 
 export { Config }
@@ -118,6 +119,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
       '- 写成概念页 / 更新编译页 / 记进目录 → wenmai_write（禁止写 raw/；补 frontmatter、wikilinks、index、log）',
       '- 体检 / 断链 / 缺字段 → wenmai_lint（只报告不自动修）',
       '- 重复、过期、冲突、知识库乱不乱 → wenmai_review（只报告；ack/snooze 写入 review-state.json）',
+      '- 合并这两页 / 改名 / 搬家 / 归档 / 拆开 / 补一条链接 / 按这份正文重写编译页 → wenmai_refactor（默认 dry-run，用户确认后再写入；禁止改 raw/）',
       '- 关联图 / 知识图谱 → wenmai_graph（不要每轮都跑）',
       '- 再扫一个文件夹（工作区之外）→ wenmai_config（须用户确认路径；禁止扫家目录）',
       '硬规则：不修改 raw/；不编造 sources；不负责抓网页或解析 PDF。written 为 NEW/REVIEW/DUPLICATE 三态，换词重写可能漏检。',
@@ -349,6 +351,46 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
   })
 
   registerTool(ctx, {
+      name: 'wenmai_refactor',
+      description:
+        '重构编译页：合并、拆分、改名、搬家、补链接、重写、归档。用户说「合并这两页 / 改名 / 归档 / 拆开」时调用。默认 dry-run，确认后再写入。禁止改 raw/。不生成正文。',
+      parameters: {
+        op: {
+          type: 'string',
+          description: 'rename | move | link | archive | merge | split | rewrite',
+        },
+        dryRun: { type: 'boolean', description: 'Default true: preview only. false: write compiled pages after the user confirms.' },
+        source: { type: 'string', description: 'Source compiled page path or slug' },
+        target: { type: 'string', description: 'Target path, slug, or folder (entities/concepts/...) depending on op' },
+        title: { type: 'string', description: 'New title for rename/split' },
+        content: { type: 'string', description: 'Agent-provided markdown for rewrite, merge result, or split remaining page' },
+        contentB: { type: 'string', description: 'Split only: markdown for the new page' },
+        finding: { type: 'string', description: 'Optional review finding id to ack after a successful apply' },
+        undo: { type: 'boolean', description: 'Restore the last refactor apply. Do not combine with op.' },
+      },
+      async execute(args, exec) {
+        throwIfAborted(exec.signal)
+        try {
+          const result = await refactorVault(root, {
+            op: typeof args.op === 'string' ? args.op : undefined,
+            dryRun: args.dryRun !== false,
+            source: typeof args.source === 'string' ? args.source : undefined,
+            target: typeof args.target === 'string' ? args.target : undefined,
+            title: typeof args.title === 'string' ? args.title : undefined,
+            content: typeof args.content === 'string' ? args.content : undefined,
+            contentB: typeof args.contentB === 'string' ? args.contentB : undefined,
+            finding: typeof args.finding === 'string' ? args.finding : undefined,
+            undo: args.undo === true,
+          })
+          if (result.applied || result.undone) await refreshOrient()
+          return result
+        } catch (error) {
+          return fail(error)
+        }
+      },
+  })
+
+  registerTool(ctx, {
       name: 'wenmai_config',
       description:
         '查看或增减额外原文目录。用户说「再扫这个文件夹 / 加上我的脚本目录」且已确认路径时调用。默认已含当前工作区；禁止扫家目录。',
@@ -417,8 +459,8 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   ctx.commands.register({
     name: 'wenmai',
-    description: '文脉: status | lint | orient | graph | review',
-    input: { hint: 'status|lint|orient|graph|review' },
+    description: '文脉: status | lint | orient | graph | review | refactor',
+    input: { hint: 'status|lint|orient|graph|review|refactor' },
     handler: async ({ rawInput, signal, agent }) => {
       throwIfAborted(signal)
       const sub = rawInput.trim() || 'status'
@@ -440,6 +482,12 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
           const report = await reviewVault(root)
           return { kind: 'success', text: formatReview(report) }
         }
+        if (sub === 'refactor') {
+          return {
+            kind: 'success',
+            text: '文脉 refactor 默认 dry-run。请用对话说明要合并/改名/归档/拆开哪些页，确认影响面后再写入。禁止改 raw/。',
+          }
+        }
         if (sub === 'graph' || sub.startsWith('graph ')) {
           const focus = sub.slice('graph'.length).trim() || undefined
           const result = await writeGraphHtml(root, {
@@ -449,7 +497,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
           openLocalFile(result.htmlPath)
           return { kind: 'success', text: formatGraph(result) }
         }
-        return { kind: 'error', text: 'Usage: /wenmai [status|lint|orient|graph|review]' }
+        return { kind: 'error', text: 'Usage: /wenmai [status|lint|orient|graph|review|refactor]' }
       } catch (error) {
         return { kind: 'error', text: error instanceof Error ? error.message : String(error) }
       }

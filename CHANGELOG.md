@@ -59,7 +59,7 @@
 
 ### 说明
 
-- 数据根默认 `~/wenmai`。若该目录不存在且本机仍有 `~/tongjian`，会沿用旧目录
+- 数据根默认 `~/wenmai`。若该目录不存在，会沿用本机已有的旧版默认目录
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 

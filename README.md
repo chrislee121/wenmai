@@ -74,7 +74,7 @@ npx --yes @deepseek-ai/dsh web
 dsh plugin --profile web add /path/to/wenmai
 ```
 
-默认数据目录是 `~/wenmai`。若该目录还不存在、但本机已有 `~/tongjian`，会自动沿用旧目录。卸载插件不会删除文脉数据：
+默认数据目录是 `~/wenmai`。若该目录还不存在，会自动沿用本机已有的旧版默认目录。卸载插件不会删除文脉数据：
 
 ```sh
 dsh plugin --profile web remove dsh-wenmai

@@ -19,7 +19,7 @@ export function expandHome(input: string): string {
 }
 
 const DEFAULT_VAULT = '~/wenmai'
-const LEGACY_VAULT = '~/tongjian'
+const LEGACY_VAULT = '~/tongjian' // 兼容更名之前的默认目录
 
 export function resolveRoot(root: string): string {
   const expanded = expandHome(root.trim())

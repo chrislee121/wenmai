@@ -1,12 +1,14 @@
-<p align="center">
-  <img src="docs/logo.png" alt="文脉 Wenmai" width="480">
-</p>
+<div align="center">
+
+<img src="docs/logo.png" alt="文脉 Wenmai" width="480">
 
 # 文脉 Wenmai
 
 当前版本：**v0.3.1**
 
 把写过的东西织成可查的文脉。
+
+</div>
 
 面向文字工作者：写文章、做自媒体、写视频脚本、写文案、写课程、写工作文档的人。DeepSeek Harness 插件。不依赖 Hermes，不用向量库，也不会把每一轮闲聊写进笔记。
 

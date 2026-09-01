@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.png" alt="文脉 Wenmai" width="480">
+</p>
+
 # 文脉 Wenmai
 
 当前版本：**v0.3.1**

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 文脉端到端验收：init → ingest → write → written 三态 → review → refactor rename → search/read/lint/graph
+ * 文脉端到端验收：init → ingest → write → written 三态 → review → tasks → refactor rename → search/read/lint/graph
  * 使用仓库内脱敏 fixture，不读取私人目录。传 --live 则写 ~/wenmai。
  */
 import assert from 'node:assert/strict'
@@ -17,6 +17,7 @@ import { ingestDirectory } from '../dist/ingest-dir.js'
 import { ingestText, initVault, readPage, status, writePage } from '../dist/store.js'
 import { reviewVault } from '../dist/review/index.js'
 import { refactorVault } from '../dist/refactor/index.js'
+import { runTasks } from '../dist/tasks/index.js'
 import { checkWritten, findWritten } from '../dist/written.js'
 import { assertLosslessJson } from '../tests/helpers/lossless-json.mjs'
 
@@ -110,6 +111,57 @@ Depends on [[local-web-ui]].
   assertLosslessJson(review)
   assert.equal(await readFile(path.join(root, ingested.rawPath), 'utf8'), rawBefore)
 
+  const dupBody = `本地 Web UI 三步打开。默认地址 3080。重复这一段是为了让词法 n-gram 有足够重叠：本地、Web、UI、打开、默认、地址、端口、工作流。
+再写一句本地 Web UI 与默认地址 3080，好让两页被判定为 duplicate。`
+  await writePage(
+    root,
+    'concepts/dup-a.md',
+    `---
+title: 本地 Web UI 打开
+type: concept
+---
+
+# 本地 Web UI 打开
+
+${dupBody}
+`,
+    { updateIndex: true },
+  )
+  await writePage(
+    root,
+    'concepts/dup-b.md',
+    `---
+title: 本地 Web UI 打开副本
+type: concept
+---
+
+# 本地 Web UI 打开副本
+
+${dupBody}
+`,
+    { updateIndex: true },
+  )
+  const queued = await runTasks(root, { op: 'list' })
+  const dupTask = queued.tasks.find((item) => item.kind === 'duplicate')
+  assert.ok(dupTask)
+  assert.equal(dupTask.suggestedOp, 'merge')
+  assertLosslessJson(queued)
+  const writtenTasks = await checkWritten(root, SOURCE_ROOTS, '本地 Web UI 打开')
+  assert.ok(writtenTasks.openTasks?.some((item) => item.id === dupTask.id))
+  assertLosslessJson(writtenTasks)
+  const mergedDup = await refactorVault(root, {
+    op: 'merge',
+    source: 'concepts/dup-b.md',
+    target: 'concepts/dup-a.md',
+    dryRun: false,
+    finding: dupTask.id,
+  })
+  assert.equal(mergedDup.findingAcked, dupTask.id)
+  const queuedAfter = await runTasks(root, { op: 'list' })
+  assert.equal(queuedAfter.tasks.some((item) => item.id === dupTask.id), false)
+  const writtenAfter = await checkWritten(root, SOURCE_ROOTS, '本地 Web UI 打开')
+  assert.equal(writtenAfter.openTasks?.some((item) => item.id === dupTask.id) ?? false, false)
+
   const renameDry = await refactorVault(root, {
     op: 'rename',
     source: 'concepts/local-web-ui.md',
@@ -163,6 +215,7 @@ Depends on [[local-web-ui]].
         writtenHits: hits.length,
         writtenVerdicts: { duplicate: duplicate.verdict, fresh: fresh.verdict },
         review: { findings: review.findingCount, pages: review.metrics.pageCount },
+        tasks: { before: queued.taskCount, after: queuedAfter.taskCount },
         refactor: { op: renamed.op, applied: renamed.applied },
         searchHits: search.length,
         lint: { errors: lint.errorCount, warnings: lint.warningCount },

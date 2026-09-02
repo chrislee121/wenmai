@@ -12,6 +12,7 @@ import {
 } from './review/duplicates.js'
 import { SKIP_DIRS } from './scan.js'
 import { listMarkdownFiles } from './store.js'
+import { overlappingOpenTasks, toWrittenOpenTask } from './tasks/index.js'
 
 export type WrittenVerdict = 'NEW' | 'REVIEW' | 'DUPLICATE'
 export type WrittenMatch = 'DUPLICATE' | 'REVIEW'
@@ -36,6 +37,7 @@ export interface WrittenReport {
   blindSpot: string
   count: number
   hits: WrittenHit[]
+  openTasks?: ReturnType<typeof toWrittenOpenTask>[]
 }
 
 const DUPLICATE_COVERAGE = 0.5
@@ -122,7 +124,8 @@ export async function checkWritten(
   hits.sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
   const limited = hits.slice(0, limit)
   const { verdict, reason } = verdictOf(limited)
-  return {
+  const openTasks = toWrittenOpenTaskList(await overlappingOpenTasks(root, limited.map((hit) => hit.path)))
+  const report: WrittenReport = {
     ok: true,
     query: trimmed,
     verdict,
@@ -131,6 +134,12 @@ export async function checkWritten(
     count: limited.length,
     hits: limited,
   }
+  if (openTasks.length > 0) report.openTasks = openTasks
+  return report
+}
+
+function toWrittenOpenTaskList(tasks: Awaited<ReturnType<typeof overlappingOpenTasks>>): ReturnType<typeof toWrittenOpenTask>[] {
+  return tasks.map(toWrittenOpenTask)
 }
 
 export async function findWritten(

@@ -182,11 +182,12 @@ dsh plugin --profile web remove dsh-wenmai
 | 查概念 | 「文脉里搜 xxx，读一下对应那页」 |
 | 体检 | 「帮我体检一下文脉，有没有断链」 |
 | 重复 / 过期 / 冲突 | 「看看知识库有没有重复或过期」 |
+| 今天该修什么 | 「今天该修什么」 |
 | 合并 / 改名 / 归档 | 「先预览把这两页合并会改哪些链接，别急着写」 |
 | 看关联 | 「生成关联图并打开」 |
 | 加原文目录 | 「以后也扫 `~/Documents/scripts` 这个文件夹」 |
 
-斜杠命令是可选快捷方式，给想自己点的人：输入 `/wenmai` 再选 `status` / `lint` / `orient` / `graph` / `review` / `refactor`。日常用对话即可。
+斜杠命令是可选快捷方式，给想自己点的人：输入 `/wenmai` 再选 `status` / `lint` / `orient` / `graph` / `review` / `tasks` / `refactor`。日常用对话即可。
 
 ### Agent 会自己遵守的规则
 
@@ -195,7 +196,7 @@ dsh plugin --profile web remove dsh-wenmai
 1. 问「写过没有」必须查库，不能凭印象回答
 2. 原文进 `raw/` 之后不能改；纠错写在概念页
 3. 新概念页要有标题等元数据、互链，并更新目录
-4. 体检和审视只报告，不擅自改文件；重构默认先列影响面，你点头后再写
+4. 体检和审视只报告，不擅自改文件；重构默认先列影响面，你点头后再写；任务来自审视结果，没有 finding 就没有任务
 5. 不扫描你家目录；额外文件夹必须你先点头
 6. 不编造原文路径，也不负责抓网页或解析 PDF
 7. 关联图按需生成，不会每句话都画一张
@@ -211,6 +212,8 @@ dsh plugin --profile web remove dsh-wenmai
 **体检：** 「体检一下」或「有没有重复过期」；要修再说修哪一页。
 
 **重构：** 「先预览把 `concepts/a.md` 并进 `concepts/b.md`」→ 看影响面 → 「按这个写进去」。只动编译页，不改 `raw/`。
+
+**知识任务：** 「今天该修什么」→ 若有重复 finding，先预览合并 → 「按这个写进去」。选题防撞时，相关未完成任务会一并带上。
 
 给 Agent 的更短对照表在包内 `skills/wenmai/SKILL.md`（意图 → 工具）。人不用读。
 
@@ -260,6 +263,7 @@ dsh plugin --profile web remove dsh-wenmai
 | `/wenmai lint` | 只读体检，输出错误和警告数 |
 | `/wenmai orient` | 重新读取并展示开局定向（SCHEMA + index + 近期 log） |
 | `/wenmai review` | 只读审视：源漂移传播、重复、冲突候选、结构问题；不改编译页 |
+| `/wenmai tasks` | 说明任务来自 finding；具体列表与完成仍用对话 |
 | `/wenmai refactor` | 说明重构默认 dry-run；具体合并/改名仍用对话 |
 | `/wenmai graph` | 生成 `graph.html` 并用系统浏览器打开 |
 | `/wenmai graph <slug>` | 以某页为中心生成局部图 |
@@ -273,12 +277,13 @@ dsh plugin --profile web remove dsh-wenmai
 | `wenmai_status` | 库是否已初始化、编译页/原文数量、当前会扫哪些 sourceRoots | 无 |
 | `wenmai_init` | 按领域创建目录树，以及 `SCHEMA.md` / `index.md` / `log.md` | **`domain`**（必填）：这个库覆盖什么 |
 | `wenmai_ingest` | 把文件、粘贴文本或整个目录复制进 `raw/`，之后不可改。编译是下一步 `write`。目录模式默认 dry-run | 单篇：`filePath` 和/或 `content`；`title`。目录：`dir`（必须在工作区或 sourceRoots 内）；`dryRun`（默认 true）。`kind`（`articles` / `scripts` / `docs` / `papers` / `workspace` / `transcripts` / `assets`） |
-| `wenmai_written` | 动笔前拦截：搜编译页与工作区原文，给出 NEW / REVIEW / DUPLICATE，并附重叠片段。词法查重抓不到换词重写 | **`query`**（必填）；`limit`（默认 20） |
+| `wenmai_written` | 动笔前拦截：搜编译页与工作区原文，给出 NEW / REVIEW / DUPLICATE，并附重叠片段。命中页若落在未完成任务里会带上 `openTasks`。词法查重抓不到换词重写 | **`query`**（必填）；`limit`（默认 20） |
 | `wenmai_search` | 在文脉库内做词法搜索（编译页 + `raw/`） | **`query`**（必填）；`limit`（默认 20） |
 | `wenmai_read` | 按相对路径读文脉根下的文件，例如 `concepts/foo.md` | **`path`**（必填）；`offset`（从第几行）；`limit`（读多少行） |
 | `wenmai_write` | 写编译页（YAML + Markdown）。**拒绝写入 `raw/`** | **`path`**、**`content`**（必填）；`log`（追加到 `log.md`）；`updateIndex`（是否把 `[[slug]]` 写入 index） |
 | `wenmai_lint` | 只读体检：孤儿页、断掉的 `[[wikilinks]]`、缺 frontmatter、raw sha256 漂移。不自动修复 | 无 |
 | `wenmai_review` | 只读审视：把 raw 哈希漂移传播到编译页、词法重复、冲突候选、结构问题、健康度数字。不改页面。可用 finding id 做 ack / snooze / wontfix | `includeDismissed`；`ttlDays`（默认 180）；`duplicateThreshold`（默认 0.5）；`ack` / `snooze` / `wontfix`；`snoozeDays` |
+| `wenmai_tasks` | 把 finding 投影成任务队列（Why / Related Pages / Expected Result / Priority / Status）。不另建编号。完成即 ack | `op`（`list` 默认 / `start` / `done` / `snooze` / `wontfix`）；`id`；`priority`；`snoozeDays`；`includeDismissed` |
 | `wenmai_refactor` | 重构编译页：merge / split / rename / move / link / rewrite / archive。默认 dry-run。禁止改 `raw/`。不生成正文。成功 apply 后可 ack finding；`undo` 只撤销上一笔 | **`op`** 或 `undo`；`dryRun`（默认 true）；`source`；`target`；`title`；`content` / `contentB`；`finding` |
 | `wenmai_config` | 查看或改额外原文目录。当前会话工作区始终在扫描列表里，改的是「额外」项，写入库内 `source-roots.json` | `add` 增加一条；`remove` 删一条；`set` 整表替换（逗号分隔，空字符串清空额外目录） |
 | `wenmai_graph` | 根据编译页 `[[wikilinks]]`、工作区/sourceRoots 里的 Markdown、标签和 sources 生成关联图，写出 `graph.html` | `focus`、`depth`（默认 2）；`includeTags` / `includeSources` / `includeMissing` / `includeArticles`（默认都为 true）；`open`（macOS 下用系统浏览器打开） |

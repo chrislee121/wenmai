@@ -23,6 +23,7 @@ import { ingestText, initVault, readPage, status, titleFromMarkdown, writePage }
 import { OBJECT_OUTPUT, parametersSchema } from './tool-def.js'
 import { reviewVault } from './review/index.js'
 import { refactorVault } from './refactor/index.js'
+import { runTasks, TASK_OPS, type TaskOp } from './tasks/index.js'
 import { checkWritten } from './written.js'
 
 export { Config }
@@ -119,6 +120,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
       '- 写成概念页 / 更新编译页 / 记进目录 → wenmai_write（禁止写 raw/；补 frontmatter、wikilinks、index、log）',
       '- 体检 / 断链 / 缺字段 → wenmai_lint（只报告不自动修）',
       '- 重复、过期、冲突、知识库乱不乱 → wenmai_review（只报告；ack/snooze 写入 review-state.json）',
+      '- 今天该修什么 / 知识任务 / 待办 → wenmai_tasks（从 finding 投影；修某一条仍走 wenmai_refactor，默认 dry-run）',
       '- 合并这两页 / 改名 / 搬家 / 归档 / 拆开 / 补一条链接 / 按这份正文重写编译页 → wenmai_refactor（默认 dry-run，用户确认后再写入；禁止改 raw/）',
       '- 关联图 / 知识图谱 → wenmai_graph（不要每轮都跑）',
       '- 再扫一个文件夹（工作区之外）→ wenmai_config（须用户确认路径；禁止扫家目录）',
@@ -351,6 +353,37 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
   })
 
   registerTool(ctx, {
+      name: 'wenmai_tasks',
+      description:
+        '把审视 finding 投影成知识任务队列。用户说「今天该修什么 / 知识任务 / 待办」时调用。不另建任务编号；修某一条仍走 wenmai_refactor。',
+      parameters: {
+        op: { type: 'string', description: 'list (default) | start | done | snooze | wontfix' },
+        id: { type: 'string', description: 'Finding fingerprint; required for start / done / snooze / wontfix' },
+        priority: { type: 'string', description: 'Filter list, or pin high|medium|low on start' },
+        snoozeDays: { type: 'number', description: 'Snooze duration in days, default 30' },
+        includeDismissed: { type: 'boolean', description: 'Include done / snoozed / wontfix, default false' },
+      },
+      async execute(args, exec) {
+        throwIfAborted(exec.signal)
+        try {
+          const opRaw = typeof args.op === 'string' ? args.op.trim() : 'list'
+          if (!(TASK_OPS as readonly string[]).includes(opRaw || 'list')) {
+            throw new Error(`unknown tasks op: ${opRaw}`)
+          }
+          return await runTasks(root, {
+            op: (opRaw || 'list') as TaskOp,
+            id: typeof args.id === 'string' ? args.id : undefined,
+            priority: typeof args.priority === 'string' ? args.priority : undefined,
+            snoozeDays: typeof args.snoozeDays === 'number' ? args.snoozeDays : undefined,
+            includeDismissed: args.includeDismissed === true,
+          })
+        } catch (error) {
+          return fail(error)
+        }
+      },
+  })
+
+  registerTool(ctx, {
       name: 'wenmai_refactor',
       description:
         '重构编译页：合并、拆分、改名、搬家、补链接、重写、归档。用户说「合并这两页 / 改名 / 归档 / 拆开」时调用。默认 dry-run，确认后再写入。禁止改 raw/。不生成正文。',
@@ -459,8 +492,8 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
 
   ctx.commands.register({
     name: 'wenmai',
-    description: '文脉: status | lint | orient | graph | review | refactor',
-    input: { hint: 'status|lint|orient|graph|review|refactor' },
+    description: '文脉: status | lint | orient | graph | review | tasks | refactor',
+    input: { hint: 'status|lint|orient|graph|review|tasks|refactor' },
     handler: async ({ rawInput, signal, agent }) => {
       throwIfAborted(signal)
       const sub = rawInput.trim() || 'status'
@@ -482,6 +515,12 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
           const report = await reviewVault(root)
           return { kind: 'success', text: formatReview(report) }
         }
+        if (sub === 'tasks') {
+          return {
+            kind: 'success',
+            text: '文脉任务队列来自 review finding，没有 finding 就没有任务。请用对话问「今天该修什么」；修某一条仍走重构（默认先预览）。',
+          }
+        }
         if (sub === 'refactor') {
           return {
             kind: 'success',
@@ -497,7 +536,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
           openLocalFile(result.htmlPath)
           return { kind: 'success', text: formatGraph(result) }
         }
-        return { kind: 'error', text: 'Usage: /wenmai [status|lint|orient|graph|review|refactor]' }
+        return { kind: 'error', text: 'Usage: /wenmai [status|lint|orient|graph|review|tasks|refactor]' }
       } catch (error) {
         return { kind: 'error', text: error instanceof Error ? error.message : String(error) }
       }

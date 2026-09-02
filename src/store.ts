@@ -4,7 +4,7 @@ import path from 'node:path'
 import { parseFrontmatter, slugify, todayStamp } from './frontmatter.js'
 import { indexTemplate, logTemplate, PAGE_DIRS, RAW_DIRS, schemaTemplate, TYPE_TO_DIR } from './layout.js'
 import type { PageType, RawKind } from './layout.js'
-import { assertNoSymlinkEscape, posixRel, resolveUnder } from './paths.js'
+import { assertNoSymlinkEscape, isRawRel, posixRel, resolveUnder } from './paths.js'
 import type { SourceRootOrigin, SourceRootRef } from './source-roots.js'
 
 export interface StatusReport {
@@ -119,8 +119,7 @@ export async function readPage(root: string, rel: string, offset?: number, limit
 }
 
 function isRawPath(rel: string): boolean {
-  const normalized = rel.replace(/\\/g, '/').replace(/^\.\//, '')
-  return normalized === 'raw' || normalized.startsWith('raw/')
+  return isRawRel(rel)
 }
 
 export async function writePage(

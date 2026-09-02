@@ -142,6 +142,7 @@ export function renderGraphHtml(graph: KnowledgeGraph): string {
     let sliderHeld = false;
     let view = 'force';
     try {
+      // 兼容更名之前图视图偏好
       var saved = localStorage.getItem('wenmai-graph-view') || localStorage.getItem('tongjian-graph-view');
       if (saved === 'cluster' || saved === 'force') view = saved;
     } catch (e) {}

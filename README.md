@@ -1,8 +1,14 @@
+<div align="center">
+
+<img src="docs/logo.png" alt="文脉 Wenmai" width="480">
+
 # 文脉 Wenmai
 
-当前版本：**v0.3.1**
+当前版本：**v0.4.0**
 
 把写过的东西织成可查的文脉。
+
+</div>
 
 面向文字工作者：写文章、做自媒体、写视频脚本、写文案、写课程、写工作文档的人。DeepSeek Harness 插件。不依赖 Hermes，不用向量库，也不会把每一轮闲聊写进笔记。
 
@@ -40,7 +46,7 @@
 
 ### 1. 安装插件
 
-npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.3.1**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
+npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.4.0**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
 
 已安装 `dsh` 时：
 
@@ -68,7 +74,7 @@ npx --yes @deepseek-ai/dsh web
 dsh plugin --profile web add /path/to/wenmai
 ```
 
-默认数据目录是 `~/wenmai`。若该目录还不存在、但本机已有 `~/tongjian`，会自动沿用旧目录。卸载插件不会删除文脉数据：
+默认数据目录是 `~/wenmai`。若该目录还不存在，会自动沿用本机已有的旧版默认目录。卸载插件不会删除文脉数据：
 
 ```sh
 dsh plugin --profile web remove dsh-wenmai
@@ -176,10 +182,11 @@ dsh plugin --profile web remove dsh-wenmai
 | 查概念 | 「文脉里搜 xxx，读一下对应那页」 |
 | 体检 | 「帮我体检一下文脉，有没有断链」 |
 | 重复 / 过期 / 冲突 | 「看看知识库有没有重复或过期」 |
+| 合并 / 改名 / 归档 | 「先预览把这两页合并会改哪些链接，别急着写」 |
 | 看关联 | 「生成关联图并打开」 |
 | 加原文目录 | 「以后也扫 `~/Documents/scripts` 这个文件夹」 |
 
-斜杠命令是可选快捷方式，给想自己点的人：输入 `/wenmai` 再选 `status` / `lint` / `orient` / `graph` / `review`。日常用对话即可。
+斜杠命令是可选快捷方式，给想自己点的人：输入 `/wenmai` 再选 `status` / `lint` / `orient` / `graph` / `review` / `refactor`。日常用对话即可。
 
 ### Agent 会自己遵守的规则
 
@@ -188,7 +195,7 @@ dsh plugin --profile web remove dsh-wenmai
 1. 问「写过没有」必须查库，不能凭印象回答
 2. 原文进 `raw/` 之后不能改；纠错写在概念页
 3. 新概念页要有标题等元数据、互链，并更新目录
-4. 体检和审视只报告，不擅自改文件
+4. 体检和审视只报告，不擅自改文件；重构默认先列影响面，你点头后再写
 5. 不扫描你家目录；额外文件夹必须你先点头
 6. 不编造原文路径，也不负责抓网页或解析 PDF
 7. 关联图按需生成，不会每句话都画一张
@@ -202,6 +209,8 @@ dsh plugin --profile web remove dsh-wenmai
 **收录一批：** 「先列出会收哪些」→ 你确认「按清单收」→ 需要成页的再一篇篇说「整理成概念页」，不会整批自动写。
 
 **体检：** 「体检一下」或「有没有重复过期」；要修再说修哪一页。
+
+**重构：** 「先预览把 `concepts/a.md` 并进 `concepts/b.md`」→ 看影响面 → 「按这个写进去」。只动编译页，不改 `raw/`。
 
 给 Agent 的更短对照表在包内 `skills/wenmai/SKILL.md`（意图 → 工具）。人不用读。
 
@@ -251,6 +260,7 @@ dsh plugin --profile web remove dsh-wenmai
 | `/wenmai lint` | 只读体检，输出错误和警告数 |
 | `/wenmai orient` | 重新读取并展示开局定向（SCHEMA + index + 近期 log） |
 | `/wenmai review` | 只读审视：源漂移传播、重复、冲突候选、结构问题；不改编译页 |
+| `/wenmai refactor` | 说明重构默认 dry-run；具体合并/改名仍用对话 |
 | `/wenmai graph` | 生成 `graph.html` 并用系统浏览器打开 |
 | `/wenmai graph <slug>` | 以某页为中心生成局部图 |
 
@@ -269,6 +279,7 @@ dsh plugin --profile web remove dsh-wenmai
 | `wenmai_write` | 写编译页（YAML + Markdown）。**拒绝写入 `raw/`** | **`path`**、**`content`**（必填）；`log`（追加到 `log.md`）；`updateIndex`（是否把 `[[slug]]` 写入 index） |
 | `wenmai_lint` | 只读体检：孤儿页、断掉的 `[[wikilinks]]`、缺 frontmatter、raw sha256 漂移。不自动修复 | 无 |
 | `wenmai_review` | 只读审视：把 raw 哈希漂移传播到编译页、词法重复、冲突候选、结构问题、健康度数字。不改页面。可用 finding id 做 ack / snooze / wontfix | `includeDismissed`；`ttlDays`（默认 180）；`duplicateThreshold`（默认 0.5）；`ack` / `snooze` / `wontfix`；`snoozeDays` |
+| `wenmai_refactor` | 重构编译页：merge / split / rename / move / link / rewrite / archive。默认 dry-run。禁止改 `raw/`。不生成正文。成功 apply 后可 ack finding；`undo` 只撤销上一笔 | **`op`** 或 `undo`；`dryRun`（默认 true）；`source`；`target`；`title`；`content` / `contentB`；`finding` |
 | `wenmai_config` | 查看或改额外原文目录。当前会话工作区始终在扫描列表里，改的是「额外」项，写入库内 `source-roots.json` | `add` 增加一条；`remove` 删一条；`set` 整表替换（逗号分隔，空字符串清空额外目录） |
 | `wenmai_graph` | 根据编译页 `[[wikilinks]]`、工作区/sourceRoots 里的 Markdown、标签和 sources 生成关联图，写出 `graph.html` | `focus`、`depth`（默认 2）；`includeTags` / `includeSources` / `includeMissing` / `includeArticles`（默认都为 true）；`open`（macOS 下用系统浏览器打开） |
 

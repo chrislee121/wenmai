@@ -1,6 +1,6 @@
 {
   "name": "dsh-wenmai",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "文脉 Wenmai — 文字工作者的编译型知识库，DeepSeek Harness 插件",
   "type": "module",
   "license": "MIT",

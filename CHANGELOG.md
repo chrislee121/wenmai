@@ -2,6 +2,22 @@
 
 本文件记录文脉 Wenmai 的公开变更。版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.0] - 2026-09-02
+
+按审视结果改知识库结构：合并、拆分、改名、搬家、补链、重写、归档。默认先预览再写入。
+
+### 新增
+
+- `wenmai_refactor` / `/wenmai refactor`：七个动作一律默认预览；确认后只改编译页与 `index.md` / `log.md`，不改 `raw/`
+- 归档用 `archived: true`；选题防撞和搜索默认跳过已归档页
+- 撤销只保留上一笔编译页快照；apply 时可 ack 对应的 review finding
+- Split / Rewrite / 语义合并的正文由对话里的 Agent 提供，工具不调模型写稿
+
+### 说明
+
+- 目录收录与重构都是「先看影响面，点头后再写」
+- 完整 P1，对应 SemVer MINOR
+
 ## [0.3.1] - 2026-09-01
 
 修复 DeepSeek Harness 里调用知识库审视失败。
@@ -63,6 +79,7 @@
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 
+[0.4.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.4.0
 [0.3.1]: https://github.com/chrislee121/wenmai/releases/tag/v0.3.1
 [0.3.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.3.0
 [0.2.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.2.0

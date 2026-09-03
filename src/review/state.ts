@@ -5,12 +5,15 @@ import type { Finding } from './findings.js'
 
 export const REVIEW_STATE_FILE = 'review-state.json'
 
-export type ReviewStatus = 'ack' | 'snooze' | 'wontfix'
+export type ReviewStatus = 'ack' | 'snooze' | 'wontfix' | 'in_progress'
+
+export type TaskPriority = 'high' | 'medium' | 'low'
 
 export interface ReviewStateEntry {
   status: ReviewStatus
   until?: string
   updated: string
+  priority?: TaskPriority
 }
 
 export interface ReviewState {
@@ -43,14 +46,18 @@ export async function markFindings(
   ids: string[],
   status: ReviewStatus,
   snoozeDays = 30,
+  extra?: { priority?: TaskPriority },
 ): Promise<ReviewState> {
   const state = await readReviewState(root)
   const updated = todayStamp()
   for (const id of ids) {
     const trimmed = id.trim()
     if (!trimmed) continue
+    const previous = state.findings[trimmed]
     const entry: ReviewStateEntry = { status, updated }
     if (status === 'snooze') entry.until = plusDays(Math.max(1, snoozeDays))
+    const pin = extra?.priority ?? previous?.priority
+    if (pin) entry.priority = pin
     state.findings[trimmed] = entry
   }
   await writeReviewState(root, state)
@@ -59,6 +66,7 @@ export async function markFindings(
 
 export function isDismissed(entry: ReviewStateEntry | undefined, now = new Date()): boolean {
   if (!entry) return false
+  if (entry.status === 'in_progress') return false
   if (entry.status === 'wontfix' || entry.status === 'ack') return true
   if (entry.status === 'snooze' && entry.until) {
     return entry.until >= todayStamp(now)

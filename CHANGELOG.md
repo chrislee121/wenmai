@@ -2,6 +2,21 @@
 
 本文件记录文脉 Wenmai 的公开变更。版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.0] - 2026-09-03
+
+把审视结果变成可执行的任务队列。问「今天该修什么」即可；选题防撞时会带上相关未完成任务。
+
+### 新增
+
+- `wenmai_tasks` / `/wenmai tasks`：任务 ID 就是 finding 指纹，不另建编号；`list` / `start` / `done` / `snooze` / `wontfix`
+- 状态住 `review-state.json`：无记录为 open，新增 `in_progress`，ack 即完成（与 refactor 带 `finding` 同一条）
+- `wenmai_written` 命中页若落在未完成任务里，附带 `openTasks`；没有则省略该键
+
+### 说明
+
+- 没有 finding 就没有任务；队列只建议动作，不自动 refactor
+- 完整 P2，对应 SemVer MINOR
+
 ## [0.4.0] - 2026-09-02
 
 按审视结果改知识库结构：合并、拆分、改名、搬家、补链、重写、归档。默认先预览再写入。
@@ -79,6 +94,7 @@
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 
+[0.5.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.5.0
 [0.4.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.4.0
 [0.3.1]: https://github.com/chrislee121/wenmai/releases/tag/v0.3.1
 [0.3.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.3.0

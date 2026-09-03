@@ -10,7 +10,7 @@ import { detectStructure } from './structure.js'
 
 export { LEXICAL_BLIND_SPOT }
 export type { Finding, ReviewMetrics }
-export type { ReviewStatus } from './state.js'
+export type { ReviewStatus, TaskPriority } from './state.js'
 
 export interface ReviewOptions {
   ttlDays?: number

@@ -124,7 +124,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
       '- 合并这两页 / 改名 / 搬家 / 归档 / 拆开 / 补一条链接 / 按这份正文重写编译页 → wenmai_refactor（默认 dry-run，用户确认后再写入；禁止改 raw/）',
       '- 关联图 / 知识图谱 → wenmai_graph（不要每轮都跑）',
       '- 再扫一个文件夹（工作区之外）→ wenmai_config（须用户确认路径；禁止扫家目录）',
-      '硬规则：不修改 raw/；不编造 sources；不负责抓网页或解析 PDF。written 为 NEW/REVIEW/DUPLICATE 三态，换词重写可能漏检。',
+      '硬规则：不修改 raw/；不编造 sources；核心不解析 PDF/Word，当前只收 Markdown；不负责抓网页。written 为 NEW/REVIEW/DUPLICATE 三态，换词重写可能漏检。',
     ].join('\n'),
   })
 

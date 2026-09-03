@@ -4,7 +4,7 @@
 
 # 文脉 Wenmai
 
-当前版本：**v0.4.0**
+当前版本：**v0.5.0**
 
 把写过的东西织成可查的文脉。
 
@@ -46,7 +46,7 @@
 
 ### 1. 安装插件
 
-npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.4.0**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
+npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.5.0**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
 
 已安装 `dsh` 时：
 
@@ -198,7 +198,7 @@ dsh plugin --profile web remove dsh-wenmai
 3. 新概念页要有标题等元数据、互链，并更新目录
 4. 体检和审视只报告，不擅自改文件；重构默认先列影响面，你点头后再写；任务来自审视结果，没有 finding 就没有任务
 5. 不扫描你家目录；额外文件夹必须你先点头
-6. 不编造原文路径，也不负责抓网页或解析 PDF
+6. 不编造原文路径；核心不解析 PDF / Word，当前只收 Markdown。不负责抓网页
 7. 关联图按需生成，不会每句话都画一张
 
 ### 常见流程（你只要说目标）

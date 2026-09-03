@@ -66,5 +66,6 @@ ingest 目录对应：文章→`articles`，脚本/口播→`scripts`，文档/�
 - 不扫描家目录；额外路径只使用用户确认或已有配置
 - 目录收录默认先列清单，确认后再写入
 - 不编造 sources 路径
+- 核心不解析 PDF / Word，当前只收 Markdown；不负责抓网页
 - 没有 finding 就没有任务；修某一条走 `wenmai_refactor`（默认 dry-run），队列不自动重构
 - 不要要求用户说出工具名

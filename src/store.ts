@@ -6,6 +6,7 @@ import { indexTemplate, logTemplate, schemaTemplate } from './layout.js'
 import { builtinPack, indexHeading, inferTypeFromPath, loadVaultPack, rawDirsOf, writeVaultPack } from './pack/index.js'
 import type { PageType, RawKind } from './pack/types.js'
 import { assertNoSymlinkEscape, isRawRel, posixRel, resolveUnder } from './paths.js'
+import { findRawByHash, rememberRawHash } from './raw-index.js'
 import type { SourceRootOrigin, SourceRootRef } from './source-roots.js'
 
 export interface StatusReport {
@@ -208,26 +209,7 @@ function countIndexLinks(index: string): number {
   return [...index.matchAll(/\[\[([^\]]+)\]\]/g)].length
 }
 
-export async function findRawByHash(root: string, hash: string): Promise<string | null> {
-  const pack = await loadVaultPack(root)
-  for (const dir of rawDirsOf(pack)) {
-    const absDir = path.join(root, dir)
-    let entries: string[] = []
-    try {
-      entries = await readdir(absDir)
-    } catch {
-      continue
-    }
-    for (const name of entries) {
-      if (!name.endsWith('.md')) continue
-      const abs = path.join(absDir, name)
-      const text = await readFile(abs, 'utf8')
-      const parsed = parseFrontmatter(text)
-      if (parsed.frontmatter.sha256 === hash) return posixRel(root, abs)
-    }
-  }
-  return null
-}
+export { findRawByHash } from './raw-index.js'
 
 export function titleFromMarkdown(body: string, fallback: string): string {
   const parsed = parseFrontmatter(body)
@@ -286,6 +268,7 @@ export async function ingestText(
     .filter((line) => line !== null)
     .join('\n')
   await writeFile(abs, `${header}${body}`, 'utf8')
+  await rememberRawHash(root, hash, rel)
   if (options.appendLogEntry !== false) {
     await appendLog(root, `ingest | ${options.title}\n- raw: ${rel}\n- sha256: ${hash}`)
   }

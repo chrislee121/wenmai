@@ -17,7 +17,6 @@
 
 - 核心不解析 PDF/Word；关适配器时仍只收 Markdown。解析逻辑不进 store / written / review
 - 插件注册拆到 `src/plugin/`，装配入口不变
-- 对应 SemVer MINOR（核心底座，不是领域方案）
 
 ## [0.5.0] - 2026-09-03
 

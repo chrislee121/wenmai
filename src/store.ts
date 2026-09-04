@@ -26,10 +26,29 @@ export interface IngestResult {
   sha256: string
   title: string
   compileHint: string
+  originalPath?: string
 }
 
 function sha256(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex')
+}
+
+export function sha256Bytes(data: Uint8Array): string {
+  return createHash('sha256').update(data).digest('hex')
+}
+
+export async function hashRawDocument(
+  root: string,
+  parsed: ReturnType<typeof parseFrontmatter>,
+): Promise<string> {
+  const original = typeof parsed.frontmatter.original === 'string' ? parsed.frontmatter.original.trim() : ''
+  if (!original) return sha256(parsed.body)
+  try {
+    if (!isRawRel(original)) return ''
+    return sha256Bytes(await readFile(resolveUnder(root, original)))
+  } catch {
+    return ''
+  }
 }
 
 async function ensureDir(dir: string): Promise<void> {
@@ -228,6 +247,7 @@ export async function ingestText(
     sourcePath?: string
     sourceUrl?: string
     appendLogEntry?: boolean
+    original?: { bytes: Uint8Array; ext: string; adapter: string }
   },
 ): Promise<IngestResult> {
   if (!(await isInitialized(root))) {
@@ -239,7 +259,11 @@ export async function ingestText(
     throw new Error(`kind must be ${pack.rawKinds.join(' | ')}`)
   }
   const body = `${options.body.trimEnd()}\n`
-  const hash = sha256(body)
+  const origExt = options.original?.ext.toLowerCase() ?? ''
+  if (options.original && !origExt.startsWith('.')) {
+    throw new Error('original ext must include the leading dot')
+  }
+  const hash = options.original ? sha256Bytes(options.original.bytes) : sha256(body)
   const existing = await findRawByHash(root, hash)
   if (existing) {
     return {
@@ -253,15 +277,21 @@ export async function ingestText(
   }
   const slug = slugify(options.title)
   const rel = `raw/${kind}/${slug}.md`
+  const origRel = options.original ? `raw/${kind}/${slug}${origExt}` : undefined
   const abs = resolveUnder(root, rel)
   await assertNoSymlinkEscape(root, path.dirname(abs))
   await ensureDir(path.dirname(abs))
+  if (options.original && origRel) {
+    await writeFile(resolveUnder(root, origRel), options.original.bytes)
+  }
   const header = [
     '---',
     options.sourceUrl ? `source_url: ${options.sourceUrl}` : null,
     options.sourcePath ? `source_path: ${options.sourcePath}` : null,
     `ingested: ${todayStamp()}`,
     `sha256: ${hash}`,
+    options.original ? `adapter: ${options.original.adapter}` : null,
+    origRel ? `original: ${origRel}` : null,
     '---',
     '',
   ]
@@ -272,7 +302,7 @@ export async function ingestText(
   if (options.appendLogEntry !== false) {
     await appendLog(root, `ingest | ${options.title}\n- raw: ${rel}\n- sha256: ${hash}`)
   }
-  return {
+  const result: IngestResult = {
     ok: true,
     deduped: false,
     rawPath: rel,
@@ -280,6 +310,8 @@ export async function ingestText(
     title: options.title,
     compileHint: compileHint(rel),
   }
+  if (origRel) result.originalPath = origRel
+  return result
 }
 
 function compileHint(rawPath: string): string {

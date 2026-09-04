@@ -26,7 +26,7 @@ function openLocalFile(file: string): void {
 }
 
 export function registerWenmaiTools(runtime: PluginRuntime): void {
-  const { ctx, root, pluginRoots, refreshOrient } = runtime
+  const { ctx, root, pluginRoots, refreshOrient, ingestAdapters } = runtime
 
   registerTool(ctx, {
     name: 'wenmai_status',
@@ -103,6 +103,7 @@ export function registerWenmaiTools(runtime: PluginRuntime): void {
             kind: normalizeKind(typeof args.kind === 'string' ? args.kind : undefined, pack.rawKinds),
             dryRun: args.dryRun !== false,
             workspaceCwd,
+            adapters: ingestAdapters,
           })
           if (!ingested.dryRun) await refreshOrient()
           return ingested
@@ -112,6 +113,7 @@ export function registerWenmaiTools(runtime: PluginRuntime): void {
           content: typeof args.content === 'string' ? args.content : undefined,
           title: typeof args.title === 'string' ? args.title : undefined,
           kind: typeof args.kind === 'string' ? args.kind : undefined,
+          adapters: ingestAdapters,
         })
         await refreshOrient()
         return ingested

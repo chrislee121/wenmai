@@ -1,10 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { createHash } from 'node:crypto'
 import { extractWikilinks, parseFrontmatter } from './frontmatter.js'
 import { loadVaultPack, rawDirsOf } from './pack/index.js'
-import { posixRel } from './paths.js'
-import { listMarkdownFiles } from './store.js'
+import { isRawRel, posixRel, resolveUnder } from './paths.js'
+import { hashRawDocument, listMarkdownFiles, sha256Bytes } from './store.js'
 
 export interface LintDiagnostic {
   severity: 'error' | 'warning'
@@ -19,10 +18,6 @@ export interface LintReport {
   warningCount: number
   filesExamined: number
   diagnostics: LintDiagnostic[]
-}
-
-function hashBody(body: string): string {
-  return createHash('sha256').update(body, 'utf8').digest('hex')
 }
 
 export async function lintVault(root: string): Promise<LintReport> {
@@ -116,7 +111,30 @@ export async function lintVault(root: string): Promise<LintReport> {
       })
       continue
     }
-    if (stored !== hashBody(parsed.body)) {
+    const original = typeof parsed.frontmatter.original === 'string' ? parsed.frontmatter.original.trim() : ''
+    if (original) {
+      try {
+        if (!isRawRel(original)) throw new Error('original must be under raw/')
+        const bytes = await readFile(resolveUnder(root, original))
+        if (stored !== sha256Bytes(bytes)) {
+          diagnostics.push({
+            severity: 'error',
+            code: 'raw-hash-drift',
+            path: rel,
+            message: 'original file sha256 does not match frontmatter; raw/ should be immutable',
+          })
+        }
+      } catch {
+        diagnostics.push({
+          severity: 'error',
+          code: 'raw-original-missing',
+          path: rel,
+          message: `original file missing or unreadable: ${original}`,
+        })
+      }
+      continue
+    }
+    if (stored !== (await hashRawDocument(root, parsed))) {
       diagnostics.push({
         severity: 'error',
         code: 'raw-hash-drift',

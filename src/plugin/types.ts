@@ -9,6 +9,7 @@ export interface PluginRuntime {
   ctx: Context
   root: string
   pluginRoots: string[]
+  ingestAdapters: boolean
   refreshOrient: () => Promise<void>
   getOrientText: () => string
 }

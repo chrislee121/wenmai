@@ -4,7 +4,7 @@ import { parseFrontmatter } from '../frontmatter.js'
 import { loadVaultPack, rawDirsOf } from '../pack/index.js'
 import { posixRel } from '../paths.js'
 import { MAX_SOURCE_FILES } from '../scan.js'
-import { listMarkdownFiles, sha256 } from '../store.js'
+import { hashRawDocument, listMarkdownFiles } from '../store.js'
 import { loadLinkedPages, type LinkedPage } from '../backlinks.js'
 
 export const MAX_REVIEW_PAGES = MAX_SOURCE_FILES
@@ -41,7 +41,7 @@ export async function loadReviewCorpus(root: string, maxPages = MAX_REVIEW_PAGES
     const text = await readFile(abs, 'utf8')
     const parsed = parseFrontmatter(text)
     const stored = typeof parsed.frontmatter.sha256 === 'string' ? parsed.frontmatter.sha256 : undefined
-    const actualHash = sha256(parsed.body)
+    const actualHash = await hashRawDocument(root, parsed)
     const doc: RawDoc = {
       abs,
       rel: posixRel(root, abs),

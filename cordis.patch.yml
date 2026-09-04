@@ -6,3 +6,4 @@
         root: '~/wenmai'
         sourceRoots: []
         orientBudgetChars: 8000
+        ingestAdapters: false

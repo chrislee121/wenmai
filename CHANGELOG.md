@@ -2,6 +2,23 @@
 
 本文件记录文脉 Wenmai 的公开变更。版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.0] - 2026-09-04
+
+把知识库结构改成 pack 配置，并补上原文哈希索引与可选的本地 PDF/Word 转写。核心仍不解析这些格式。
+
+### 新增
+
+- 新库写出 `.wenmai/pack.json`；内置 writer 包。旧库没有该文件则按 writer 工作
+- `wenmai_init` 可选 `pack`（目前只有 `writer`）
+- `.wenmai/raw-hashes.json`：ingest 去重先查索引，miss 再全扫重建
+- 可选本地适配器：插件配置 `ingestAdapters: true` 后，用本机 `pdftotext` / `pandoc` 收 PDF / `.docx`；原件与转写并存。默认关
+
+### 说明
+
+- 核心不解析 PDF/Word；关适配器时仍只收 Markdown。解析逻辑不进 store / written / review
+- 插件注册拆到 `src/plugin/`，装配入口不变
+- 对应 SemVer MINOR（核心底座，不是领域方案）
+
 ## [0.5.0] - 2026-09-03
 
 把审视结果变成可执行的任务队列。问「今天该修什么」即可；选题防撞时会带上相关未完成任务。
@@ -94,6 +111,7 @@
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 
+[0.6.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.0
 [0.5.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.5.0
 [0.4.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.4.0
 [0.3.1]: https://github.com/chrislee121/wenmai/releases/tag/v0.3.1

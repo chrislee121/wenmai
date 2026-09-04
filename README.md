@@ -4,7 +4,7 @@
 
 # 文脉 Wenmai
 
-当前版本：**v0.5.0**
+当前版本：**v0.6.0**
 
 把写过的东西织成可查的文脉。
 
@@ -46,7 +46,7 @@
 
 ### 1. 安装插件
 
-npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.5.0**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
+npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.6.0**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
 
 已安装 `dsh` 时：
 
@@ -105,10 +105,12 @@ dsh plugin --profile web remove dsh-wenmai
     sourceRoots:
       - '~/Documents/writing/scripts'
     orientBudgetChars: 8000
+    ingestAdapters: false
 ```
 
 - `root`：文脉数据根，默认 `~/wenmai`
 - `sourceRoots`：额外扫描根，叠加在会话工作区之上
+- `ingestAdapters`：是否用本机 `pdftotext` / `pandoc` 转写 PDF / Word，默认关。核心不解析这些格式
 - 不要把家目录整盘配进去
 
 ### 4. 初始化
@@ -198,7 +200,7 @@ dsh plugin --profile web remove dsh-wenmai
 3. 新概念页要有标题等元数据、互链，并更新目录
 4. 体检和审视只报告，不擅自改文件；重构默认先列影响面，你点头后再写；任务来自审视结果，没有 finding 就没有任务
 5. 不扫描你家目录；额外文件夹必须你先点头
-6. 不编造原文路径；核心不解析 PDF / Word，当前只收 Markdown。不负责抓网页
+6. 不编造原文路径；核心不解析 PDF / Word。可选本地适配器转写（默认关）。不负责抓网页
 7. 关联图按需生成，不会每句话都画一张
 
 ### 常见流程（你只要说目标）
@@ -226,6 +228,9 @@ dsh plugin --profile web remove dsh-wenmai
 ├── SCHEMA.md
 ├── index.md
 ├── log.md
+├── .wenmai/
+│   ├── pack.json         # 结构包，缺省按 writer
+│   └── raw-hashes.json   # 原文 sha256 索引
 ├── raw/                 # 不可变
 │   ├── articles/
 │   ├── scripts/
@@ -275,8 +280,8 @@ dsh plugin --profile web remove dsh-wenmai
 | 工具 | 做什么 | 主要参数 |
 |---|---|---|
 | `wenmai_status` | 库是否已初始化、编译页/原文数量、当前会扫哪些 sourceRoots | 无 |
-| `wenmai_init` | 按领域创建目录树，以及 `SCHEMA.md` / `index.md` / `log.md` | **`domain`**（必填）：这个库覆盖什么 |
-| `wenmai_ingest` | 把文件、粘贴文本或整个目录复制进 `raw/`，之后不可改。编译是下一步 `write`。目录模式默认 dry-run | 单篇：`filePath` 和/或 `content`；`title`。目录：`dir`（必须在工作区或 sourceRoots 内）；`dryRun`（默认 true）。`kind`（`articles` / `scripts` / `docs` / `papers` / `workspace` / `transcripts` / `assets`） |
+| `wenmai_init` | 按领域创建目录树，以及 `SCHEMA.md` / `index.md` / `log.md`；新库写出 `.wenmai/pack.json` | **`domain`**（必填）：这个库覆盖什么；`pack`（可选，默认 `writer`） |
+| `wenmai_ingest` | 把文件、粘贴文本或整个目录复制进 `raw/`，之后不可改。编译是下一步 `write`。目录模式默认 dry-run。PDF / Word 默认拒收，需打开 `ingestAdapters` | 单篇：`filePath` 和/或 `content`；`title`。目录：`dir`（必须在工作区或 sourceRoots 内）；`dryRun`（默认 true）。`kind`（`articles` / `scripts` / `docs` / `papers` / `workspace` / `transcripts` / `assets`） |
 | `wenmai_written` | 动笔前拦截：搜编译页与工作区原文，给出 NEW / REVIEW / DUPLICATE，并附重叠片段。命中页若落在未完成任务里会带上 `openTasks`。词法查重抓不到换词重写 | **`query`**（必填）；`limit`（默认 20） |
 | `wenmai_search` | 在文脉库内做词法搜索（编译页 + `raw/`） | **`query`**（必填）；`limit`（默认 20） |
 | `wenmai_read` | 按相对路径读文脉根下的文件，例如 `concepts/foo.md` | **`path`**（必填）；`offset`（从第几行）；`limit`（读多少行） |

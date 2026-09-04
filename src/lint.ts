@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { extractWikilinks, parseFrontmatter } from './frontmatter.js'
-import { PAGE_DIRS, RAW_DIRS } from './layout.js'
+import { loadVaultPack, rawDirsOf } from './pack/index.js'
 import { posixRel } from './paths.js'
 import { listMarkdownFiles } from './store.js'
 
@@ -27,8 +27,9 @@ function hashBody(body: string): string {
 
 export async function lintVault(root: string): Promise<LintReport> {
   const diagnostics: LintDiagnostic[] = []
-  const pageFiles = await listMarkdownFiles(root, PAGE_DIRS)
-  const rawFiles = await listMarkdownFiles(root, RAW_DIRS)
+  const pack = await loadVaultPack(root)
+  const pageFiles = await listMarkdownFiles(root, pack.pageDirs)
+  const rawFiles = await listMarkdownFiles(root, rawDirsOf(pack))
   const filesExamined = pageFiles.length + rawFiles.length + 2
 
   let index = ''

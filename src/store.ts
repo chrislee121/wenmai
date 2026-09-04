@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseFrontmatter, slugify, todayStamp } from './frontmatter.js'
-import { indexTemplate, logTemplate, PAGE_DIRS, RAW_DIRS, schemaTemplate, TYPE_TO_DIR } from './layout.js'
-import type { PageType, RawKind } from './layout.js'
+import { indexTemplate, logTemplate, schemaTemplate } from './layout.js'
+import { builtinPack, indexHeading, inferTypeFromPath, loadVaultPack, rawDirsOf, writeVaultPack } from './pack/index.js'
+import type { PageType, RawKind } from './pack/types.js'
 import { assertNoSymlinkEscape, isRawRel, posixRel, resolveUnder } from './paths.js'
 import type { SourceRootOrigin, SourceRootRef } from './source-roots.js'
 
@@ -43,19 +44,25 @@ export async function isInitialized(root: string): Promise<boolean> {
   }
 }
 
-export async function initVault(root: string, domain: string): Promise<{ ok: true; created: boolean; root: string }> {
+export async function initVault(
+  root: string,
+  domain: string,
+  options: { pack?: string } = {},
+): Promise<{ ok: true; created: boolean; root: string; pack: string }> {
   await ensureDir(root)
   const existed = await isInitialized(root)
-  for (const dir of [...PAGE_DIRS, ...RAW_DIRS]) {
+  const pack = existed ? await loadVaultPack(root) : builtinPack(options.pack ?? 'writer')
+  if (!existed) await writeVaultPack(root, pack)
+  for (const dir of [...pack.pageDirs, ...rawDirsOf(pack)]) {
     await ensureDir(path.join(root, dir))
   }
   if (!existed) {
     const today = todayStamp()
-    await writeFile(path.join(root, 'SCHEMA.md'), schemaTemplate(domain), 'utf8')
-    await writeFile(path.join(root, 'index.md'), indexTemplate(domain, today), 'utf8')
-    await writeFile(path.join(root, 'log.md'), logTemplate(today, domain), 'utf8')
+    await writeFile(path.join(root, 'SCHEMA.md'), schemaTemplate(domain, pack), 'utf8')
+    await writeFile(path.join(root, 'index.md'), indexTemplate(domain, today, pack), 'utf8')
+    await writeFile(path.join(root, 'log.md'), logTemplate(today, domain, pack), 'utf8')
   }
-  return { ok: true, created: !existed, root }
+  return { ok: true, created: !existed, root, pack: pack.id }
 }
 
 async function countMarkdown(root: string, relDir: string): Promise<number> {
@@ -79,8 +86,9 @@ export async function status(root: string, sourceRoots: Array<string | SourceRoo
   let pageCount = 0
   let rawCount = 0
   if (initialized) {
-    for (const dir of PAGE_DIRS) pageCount += await countMarkdown(root, dir)
-    for (const dir of RAW_DIRS) rawCount += await countMarkdown(root, dir)
+    const pack = await loadVaultPack(root)
+    for (const dir of pack.pageDirs) pageCount += await countMarkdown(root, dir)
+    for (const dir of rawDirsOf(pack)) rawCount += await countMarkdown(root, dir)
   }
   const roots = await Promise.all(
     sourceRoots.map(async (item) => {
@@ -144,20 +152,15 @@ export async function writePage(
   if (options.updateIndex) {
     const parsed = parseFrontmatter(content)
     const title = String(parsed.frontmatter.title ?? path.basename(rel, '.md'))
-    const type = (parsed.frontmatter.type as PageType | undefined) ?? inferTypeFromPath(rel)
+    const type = (parsed.frontmatter.type as PageType | undefined) ?? (await inferTypeFromPathAsync(root, rel))
     await addIndexEntry(root, rel, title, type)
     indexed = true
   }
   return { ok: true, path: posixRel(root, abs), logged, indexed }
 }
 
-function inferTypeFromPath(rel: string): PageType {
-  const top = rel.replace(/\\/g, '/').split('/')[0]
-  if (top === 'entities') return 'entity'
-  if (top === 'concepts') return 'concept'
-  if (top === 'comparisons') return 'comparison'
-  if (top === 'queries') return 'query'
-  return 'summary'
+async function inferTypeFromPathAsync(root: string, rel: string): Promise<PageType> {
+  return inferTypeFromPath(rel, await loadVaultPack(root))
 }
 
 export async function appendLog(root: string, entry: string): Promise<void> {
@@ -175,9 +178,9 @@ export async function appendLog(root: string, entry: string): Promise<void> {
 
 async function addIndexEntry(root: string, rel: string, title: string, type: PageType): Promise<void> {
   const abs = path.join(root, 'index.md')
-  let index = await readFile(abs, 'utf8').catch(() => indexTemplate('unknown', todayStamp()))
-  const dir = TYPE_TO_DIR[type]
-  const heading = dir ? `## ${dir[0]!.toUpperCase()}${dir.slice(1)}` : '## Concepts'
+  const pack = await loadVaultPack(root)
+  let index = await readFile(abs, 'utf8').catch(() => indexTemplate('unknown', todayStamp(), pack))
+  const heading = indexHeading(pack, type)
   const slug = path.basename(rel, '.md')
   const line = `- [[${slug}]] — ${title}`
   if (index.includes(`[[${slug}]]`)) return
@@ -206,7 +209,8 @@ function countIndexLinks(index: string): number {
 }
 
 export async function findRawByHash(root: string, hash: string): Promise<string | null> {
-  for (const dir of RAW_DIRS) {
+  const pack = await loadVaultPack(root)
+  for (const dir of rawDirsOf(pack)) {
     const absDir = path.join(root, dir)
     let entries: string[] = []
     try {
@@ -247,7 +251,11 @@ export async function ingestText(
   if (!(await isInitialized(root))) {
     throw new Error('vault is not initialized; call wenmai_init first')
   }
+  const pack = await loadVaultPack(root)
   const kind: RawKind = options.kind ?? (options.sourcePath ? 'workspace' : 'articles')
+  if (!pack.rawKinds.includes(kind)) {
+    throw new Error(`kind must be ${pack.rawKinds.join(' | ')}`)
+  }
   const body = `${options.body.trimEnd()}\n`
   const hash = sha256(body)
   const existing = await findRawByHash(root, hash)

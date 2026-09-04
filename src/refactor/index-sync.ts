@@ -1,10 +1,9 @@
 import { todayStamp } from '../frontmatter.js'
-import { TYPE_TO_DIR, type PageType } from '../layout.js'
+import { WRITER_PACK, indexHeading, type PackConfig } from '../pack/index.js'
+import type { PageType } from '../pack/types.js'
 
-function headingFor(type: PageType): string {
-  const dir = TYPE_TO_DIR[type]
-  if (!dir) return '## Concepts'
-  return `## ${dir[0]!.toUpperCase()}${dir.slice(1)}`
+function headingFor(type: PageType, pack: PackConfig): string {
+  return indexHeading(pack, type)
 }
 
 function countIndexLinks(index: string): number {
@@ -27,9 +26,9 @@ export function removeIndexSlug(index: string, slug: string): string {
   return stampIndex(lines.join('\n').replace(/\n{3,}/g, '\n\n'))
 }
 
-export function addIndexSlug(index: string, slug: string, title: string, type: PageType): string {
+export function addIndexSlug(index: string, slug: string, title: string, type: PageType, pack: PackConfig = WRITER_PACK): string {
   if (index.includes(`[[${slug}]]`)) return stampIndex(index)
-  const heading = headingFor(type)
+  const heading = headingFor(type, pack)
   const line = `- [[${slug}]] — ${title}`
   if (!index.includes(heading)) {
     return stampIndex(`${index.trimEnd()}\n\n${heading}\n\n${line}\n`)
@@ -46,6 +45,6 @@ export function addIndexSlug(index: string, slug: string, title: string, type: P
   return stampIndex(`${before}${heading}${section}\n${line}\n${rest}`)
 }
 
-export function moveIndexSlug(index: string, slug: string, title: string, type: PageType): string {
-  return addIndexSlug(removeIndexSlug(index, slug), slug, title, type)
+export function moveIndexSlug(index: string, slug: string, title: string, type: PageType, pack: PackConfig = WRITER_PACK): string {
+  return addIndexSlug(removeIndexSlug(index, slug), slug, title, type, pack)
 }

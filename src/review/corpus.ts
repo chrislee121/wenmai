@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseFrontmatter } from '../frontmatter.js'
-import { PAGE_DIRS, RAW_DIRS } from '../layout.js'
+import { loadVaultPack, rawDirsOf } from '../pack/index.js'
 import { posixRel } from '../paths.js'
 import { MAX_SOURCE_FILES } from '../scan.js'
 import { listMarkdownFiles, sha256 } from '../store.js'
@@ -28,12 +28,13 @@ export interface ReviewCorpus {
 }
 
 export async function loadReviewCorpus(root: string, maxPages = MAX_REVIEW_PAGES): Promise<ReviewCorpus> {
-  const pageFiles = await listMarkdownFiles(root, PAGE_DIRS)
+  const pack = await loadVaultPack(root)
+  const pageFiles = await listMarkdownFiles(root, pack.pageDirs)
   const truncated = pageFiles.length > maxPages
   const limited = truncated ? pageFiles.slice(0, maxPages) : pageFiles
   const pages = await loadLinkedPages(root, limited)
 
-  const rawFiles = await listMarkdownFiles(root, RAW_DIRS)
+  const rawFiles = await listMarkdownFiles(root, rawDirsOf(pack))
   const raws: RawDoc[] = []
   const rawByRel = new Map<string, RawDoc>()
   for (const abs of rawFiles) {

@@ -1,12 +1,13 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { RAW_KINDS, type RawKind } from '../layout.js'
+import { loadVaultPack } from '../pack/index.js'
+import type { RawKind } from '../pack/types.js'
 import { expandHome, isUnderRoot, PathEscapeError } from '../paths.js'
 import { ingestText, titleFromMarkdown } from '../store.js'
 
-export function normalizeKind(kind: string | undefined, allowed: readonly string[] = RAW_KINDS): RawKind | undefined {
+export function normalizeKind(kind: string | undefined, allowed: readonly string[]): RawKind | undefined {
   if (!kind) return undefined
-  if (allowed.includes(kind)) return kind as RawKind
+  if (allowed.includes(kind)) return kind
   throw new Error(`kind must be ${allowed.join(' | ')}`)
 }
 
@@ -16,6 +17,7 @@ export async function ingestFromArgs(
   workspaceCwd: string | undefined,
   args: { filePath?: string; content?: string; title?: string; kind?: string },
 ) {
+  const pack = await loadVaultPack(root)
   let body = args.content?.trim() ?? ''
   let sourcePath: string | undefined
   if (args.filePath?.trim()) {
@@ -34,6 +36,6 @@ export async function ingestFromArgs(
   const title =
     args.title?.trim() ||
     titleFromMarkdown(body, sourcePath ? path.basename(sourcePath, path.extname(sourcePath)) : 'untitled')
-  const kind = normalizeKind(args.kind) ?? (sourcePath ? 'workspace' : 'articles')
+  const kind = normalizeKind(args.kind, pack.rawKinds) ?? (sourcePath ? 'workspace' : 'articles')
   return ingestText(root, { title, body, kind, sourcePath })
 }

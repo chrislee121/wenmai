@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import type { RawKind } from './layout.js'
+import type { RawKind } from './pack/types.js'
+import { loadVaultPack } from './pack/index.js'
 import { expandHome, isUnderRoot, PathEscapeError } from './paths.js'
 import { MAX_SOURCE_FILES, scanSourceMarkdown, type ScanSkip } from './scan.js'
 import { appendLog, ingestText, isInitialized, titleFromMarkdown } from './store.js'
@@ -69,7 +70,11 @@ export async function ingestDirectory(
   }
   const absDir = resolveIngestDir(dir, options.workspaceCwd)
   assertAllowedDir(absDir, options.allowedRoots)
+  const pack = await loadVaultPack(vaultRoot)
   const kind: RawKind = options.kind ?? 'workspace'
+  if (!pack.rawKinds.includes(kind)) {
+    throw new Error(`kind must be ${pack.rawKinds.join(' | ')}`)
+  }
   const dryRun = options.dryRun !== false
   const scan = await scanSourceMarkdown([absDir], MAX_SOURCE_FILES)
   const skipped = scan.skipped.map((item) => ({ path: item.abs, reason: item.reason }))

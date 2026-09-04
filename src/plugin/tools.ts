@@ -1,4 +1,5 @@
 import { ingestDirectory } from '../ingest-dir.js'
+import { loadVaultPack } from '../pack/index.js'
 import { writeGraphHtml } from '../graph.js'
 import { lintVault } from '../lint.js'
 import { refactorVault } from '../refactor/index.js'
@@ -46,11 +47,14 @@ export function registerWenmaiTools(runtime: PluginRuntime): void {
     description: '按领域创建文脉目录与 SCHEMA / index / log。用户说「初始化 / 建库 / 第一次用文脉」时调用。',
     parameters: {
       domain: { type: 'string', required: true, description: 'What this 文脉 covers, e.g. articles, video scripts, copy, and work docs' },
+      pack: { type: 'string', description: 'Built-in pack id, default writer' },
     },
     async execute(args, exec) {
       throwIfAborted(exec.signal)
       try {
-        const result = await initVault(root, String(args.domain ?? ''))
+        const result = await initVault(root, String(args.domain ?? ''), {
+          pack: typeof args.pack === 'string' ? args.pack : undefined,
+        })
         await refreshOrient()
         return result
       } catch (error) {
@@ -93,9 +97,10 @@ export function registerWenmaiTools(runtime: PluginRuntime): void {
           throw new Error('dir cannot be combined with filePath or content')
         }
         if (dir) {
+          const pack = await loadVaultPack(root)
           const ingested = await ingestDirectory(root, dir, {
             allowedRoots: paths,
-            kind: normalizeKind(typeof args.kind === 'string' ? args.kind : undefined),
+            kind: normalizeKind(typeof args.kind === 'string' ? args.kind : undefined, pack.rawKinds),
             dryRun: args.dryRun !== false,
             workspaceCwd,
           })

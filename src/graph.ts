@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { extractWikilinks, parseFrontmatter } from './frontmatter.js'
-import { PAGE_DIRS } from './layout.js'
+import { loadVaultPack } from './pack/index.js'
 import { isUnderRoot, posixRel } from './paths.js'
 import { listSourceMarkdown } from './scan.js'
 import { isInitialized, listMarkdownFiles } from './store.js'
@@ -137,7 +137,8 @@ export async function buildKnowledgeGraph(root: string, options: GraphViewOption
   const includeSources = options.includeSources !== false
   const includeMissing = options.includeMissing !== false
   const includeArticles = options.includeArticles !== false
-  const files = await listMarkdownFiles(root, PAGE_DIRS)
+  const pack = await loadVaultPack(root)
+  const files = await listMarkdownFiles(root, pack.pageDirs)
   const known = new Map<string, { path: string; title: string; type: string; tags: string[]; sources: string[] }>()
 
   for (const abs of files) {

@@ -1,21 +1,30 @@
-export const PAGE_DIRS = ['entities', 'concepts', 'comparisons', 'queries'] as const
-export const RAW_KINDS = ['articles', 'scripts', 'docs', 'papers', 'workspace', 'transcripts', 'assets'] as const
-export const RAW_DIRS = RAW_KINDS.map((kind) => `raw/${kind}`) as readonly `raw/${(typeof RAW_KINDS)[number]}`[]
-export const PAGE_TYPES = ['entity', 'concept', 'comparison', 'query', 'summary'] as const
+import type { PackConfig } from './pack/types.js'
+import { WRITER_PACK, rawDirsOf } from './pack/index.js'
 
-export type PageDir = (typeof PAGE_DIRS)[number]
-export type PageType = (typeof PAGE_TYPES)[number]
-export type RawKind = (typeof RAW_KINDS)[number]
+export type { PageDir, PageType, RawKind, PackConfig } from './pack/types.js'
+export {
+  WRITER_PACK,
+  builtinPack,
+  loadVaultPack,
+  writeVaultPack,
+  rawDirsOf,
+  indexHeading,
+  inferTypeFromPath,
+  typeFromDir,
+  isPageDir,
+  PACK_FILE,
+} from './pack/index.js'
 
-export const TYPE_TO_DIR: Record<PageType, PageDir | null> = {
-  entity: 'entities',
-  concept: 'concepts',
-  comparison: 'comparisons',
-  query: 'queries',
-  summary: null,
-}
+export const PAGE_DIRS = WRITER_PACK.pageDirs
+export const RAW_KINDS = WRITER_PACK.rawKinds
+export const RAW_DIRS = rawDirsOf(WRITER_PACK)
+export const PAGE_TYPES = WRITER_PACK.pageTypes
+export const TYPE_TO_DIR = WRITER_PACK.typeToDir
 
-export function schemaTemplate(domain: string): string {
+export function schemaTemplate(domain: string, pack: PackConfig = WRITER_PACK): string {
+  const types = pack.pageTypes.join(' | ')
+  const tags = pack.tagTaxonomy.map((tag) => `- ${tag}`).join('\n')
+  const sampleSource = `raw/${pack.rawKinds.includes('workspace') ? 'workspace' : pack.rawKinds[0]}/example.md`
   return `# 文脉 Schema
 
 ## Domain
@@ -36,23 +45,15 @@ ${domain}
 title: Page Title
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
-type: entity | concept | comparison | query | summary
+type: ${types}
 tags: []
-sources: [raw/workspace/example.md]
+sources: [${sampleSource}]
 ---
 \`\`\`
 
 ## Tag Taxonomy
 Add a tag here BEFORE using it on a page.
-- topic
-- product
-- person
-- workflow
-- script
-- copy
-- document
-- comparison
-- opinion
+${tags}
 
 ## Page Thresholds
 - Create a page when an entity/concept appears in 2+ sources OR is central to one source
@@ -62,28 +63,26 @@ Add a tag here BEFORE using it on a page.
 `
 }
 
-export function indexTemplate(domain: string, today: string): string {
+export function indexTemplate(domain: string, today: string, pack: PackConfig = WRITER_PACK): string {
+  const sections = pack.pageDirs
+    .map((dir) => `## ${pack.indexHeadings[dir] ?? dir}\n`)
+    .join('\n')
   return `# 文脉目录
 
 - Domain: ${domain}
 - Total pages: 0
 - Last updated: ${today}
 
-## Entities
-
-## Concepts
-
-## Comparisons
-
-## Queries
-`
+${sections}`
 }
 
-export function logTemplate(today: string, domain: string): string {
+export function logTemplate(today: string, domain: string, pack: PackConfig = WRITER_PACK): string {
+  const dirs = ['SCHEMA.md', 'index.md', 'log.md', ...rawDirsOf(pack).map((dir) => `${dir}/`), ...pack.pageDirs.map((dir) => `${dir}/`)].join(', ')
   return `# 文脉日志
 
 ## [${today}] init | 文脉 created
 - domain: ${domain}
-- directories: SCHEMA.md, index.md, log.md, raw/{articles,scripts,docs,papers,workspace,transcripts,assets}/, entities/, concepts/, comparisons/, queries/
+- pack: ${pack.id}
+- directories: ${dirs}
 `
 }

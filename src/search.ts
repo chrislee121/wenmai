@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { isArchived, parseFrontmatter } from './frontmatter.js'
-import { PAGE_DIRS, RAW_DIRS } from './layout.js'
+import { loadVaultPack, rawDirsOf } from './pack/index.js'
 import { posixRel } from './paths.js'
 import { listMarkdownFiles } from './store.js'
 
@@ -29,13 +29,14 @@ function snippetAround(text: string, query: string, max = 180): string {
 }
 
 async function nodeSearch(root: string, query: string, limit: number): Promise<SearchHit[]> {
-  const files = await listMarkdownFiles(root, [...PAGE_DIRS, ...RAW_DIRS])
+  const pack = await loadVaultPack(root)
+  const files = await listMarkdownFiles(root, [...pack.pageDirs, ...rawDirsOf(pack)])
   const q = query.toLowerCase()
   const hits: SearchHit[] = []
   for (const abs of files) {
     const text = await readFile(abs, 'utf8')
     const parsed = parseFrontmatter(text)
-    if (isArchived(parsed.frontmatter) && PAGE_DIRS.some((dir) => posixRel(root, abs).startsWith(`${dir}/`))) continue
+    if (isArchived(parsed.frontmatter) && pack.pageDirs.some((dir) => posixRel(root, abs).startsWith(`${dir}/`))) continue
     const haystack = `${parsed.frontmatter.title ?? ''} ${path.basename(abs)} ${parsed.body}`
     const lower = haystack.toLowerCase()
     if (!lower.includes(q)) continue
@@ -100,9 +101,10 @@ export async function searchVault(root: string, query: string, limit = 20): Prom
 }
 
 async function filterArchivedHits(root: string, hits: SearchHit[]): Promise<SearchHit[]> {
+  const pack = await loadVaultPack(root)
   const kept: SearchHit[] = []
   for (const hit of hits) {
-    if (!PAGE_DIRS.some((dir) => hit.path.startsWith(`${dir}/`))) {
+    if (!pack.pageDirs.some((dir) => hit.path.startsWith(`${dir}/`))) {
       kept.push(hit)
       continue
     }

@@ -11,17 +11,20 @@ import {
   todayStamp,
   type Frontmatter,
 } from '../frontmatter.js'
-import { PAGE_DIRS, type PageType } from '../layout.js'
+import { isPageDir, loadVaultPack, typeFromDir, type PackConfig } from '../pack/index.js'
+import type { PageType } from '../pack/types.js'
 import { isRawRel } from '../paths.js'
 import { addIndexSlug, moveIndexSlug, removeIndexSlug, replaceIndexSlug } from './index-sync.js'
 import { REFACTOR_OPS, type FilePatch, type RefactorLinkRewrite, type RefactorOp, type RefactorOptions, type RefactorPlan } from './types.js'
 import { addWikilinkIfMissing, pageDirOf, rewriteWikilinkSlug, slugFromRel } from './wikilinks.js'
 
-const DIR_TO_TYPE: Record<string, PageType> = {
-  entities: 'entity',
-  concepts: 'concept',
-  comparisons: 'comparison',
-  queries: 'query',
+function isCompiledRel(rel: string, pack: PackConfig): boolean {
+  const top = pageDirOf(rel)
+  return isPageDir(top, pack) && rel.endsWith('.md')
+}
+
+function typeFromRel(rel: string, pack: PackConfig): PageType {
+  return typeFromDir(pageDirOf(rel), pack)
 }
 
 function normalizeRel(rel: string): string {
@@ -32,15 +35,6 @@ function assertNotRaw(rel: string): void {
   if (isRawRel(rel)) {
     throw new Error('refusing to refactor under raw/; raw sources are immutable')
   }
-}
-
-function isCompiledRel(rel: string): boolean {
-  const top = pageDirOf(rel)
-  return (PAGE_DIRS as readonly string[]).includes(top) && rel.endsWith('.md')
-}
-
-function typeFromRel(rel: string): PageType {
-  return DIR_TO_TYPE[pageDirOf(rel)] ?? 'concept'
 }
 
 function guessDir(pages: LinkedPage[], slug: string): string {
@@ -132,13 +126,14 @@ function destFromTarget(
   target: string | undefined,
   title: string | undefined,
   op: 'rename' | 'move',
+  pack: PackConfig,
 ): string {
   const trimmed = (target ?? '').trim()
   if (op === 'rename') {
     if (trimmed.includes('/') || trimmed.endsWith('.md')) {
       const rel = normalizeRel(trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`)
       assertNotRaw(rel)
-      if (!isCompiledRel(rel)) throw new Error('rename target must be a compiled page path')
+      if (!isCompiledRel(rel, pack)) throw new Error('rename target must be a compiled page path')
       return rel
     }
     const slug = trimmed || slugify(title ?? '')
@@ -147,12 +142,12 @@ function destFromTarget(
   }
   if (!trimmed) throw new Error('move needs target path or folder')
   const folder = trimmed.replace(/\/$/, '')
-  if ((PAGE_DIRS as readonly string[]).includes(folder)) {
+  if (isPageDir(folder, pack)) {
     return `${folder}/${slugFromRel(sourceRel)}.md`
   }
   const rel = normalizeRel(trimmed.endsWith('.md') ? trimmed : `${trimmed}.md`)
   assertNotRaw(rel)
-  if (!isCompiledRel(rel)) throw new Error(`move target must be under ${PAGE_DIRS.join(' | ')}`)
+  if (!isCompiledRel(rel, pack)) throw new Error(`move target must be under ${pack.pageDirs.join(' | ')}`)
   return rel
 }
 
@@ -162,6 +157,7 @@ export async function buildRefactorPlan(root: string, options: RefactorOptions):
     throw new Error(`op must be ${REFACTOR_OPS.join(' | ')}`)
   }
   const op = opRaw as RefactorOp
+  const pack = await loadVaultPack(root)
   const index = await loadBacklinkIndex(root)
   const pages = index.pages
   let indexMd = await readFile(path.join(root, 'index.md'), 'utf8')
@@ -173,7 +169,7 @@ export async function buildRefactorPlan(root: string, options: RefactorOptions):
 
   if (op === 'rename') {
     const sourceRel = resolveInput(options.source, pages)
-    const destRel = destFromTarget(sourceRel, options.target, options.title, 'rename')
+    const destRel = destFromTarget(sourceRel, options.target, options.title, 'rename', pack)
     const source = pages.find((page) => page.rel === sourceRel)!
     if (destRel !== sourceRel && pages.some((page) => page.rel === destRel)) {
       throw new Error(`target already exists: ${destRel}`)
@@ -197,13 +193,13 @@ export async function buildRefactorPlan(root: string, options: RefactorOptions):
     logEntry = `refactor | rename ${sourceRel} -> ${destRel}`
   } else if (op === 'move') {
     const sourceRel = resolveInput(options.source, pages)
-    const destRel = destFromTarget(sourceRel, options.target, options.title, 'move')
+    const destRel = destFromTarget(sourceRel, options.target, options.title, 'move', pack)
     const source = pages.find((page) => page.rel === sourceRel)!
     if (destRel !== sourceRel && pages.some((page) => page.rel === destRel)) {
       throw new Error(`target already exists: ${destRel}`)
     }
     const parsed = parseFrontmatter(source.text)
-    const nextType = typeFromRel(destRel)
+    const nextType = typeFromRel(destRel, pack)
     const newSlug = slugFromRel(destRel)
     const fm = withTitle(bumpUpdated({ ...parsed.frontmatter, type: nextType }), options.title)
     const nextText = rewriteWikilinkSlug(serializeDocument(fm, parsed.body), source.slug, newSlug)
@@ -214,7 +210,7 @@ export async function buildRefactorPlan(root: string, options: RefactorOptions):
     if (destRel !== sourceRel) {
       patches = mergePatch(patches, { path: sourceRel, action: 'delete', content: '' })
     }
-    indexMd = moveIndexSlug(replaceIndexSlug(indexMd, source.slug, newSlug), newSlug, String(fm.title ?? newSlug), nextType)
+    indexMd = moveIndexSlug(replaceIndexSlug(indexMd, source.slug, newSlug), newSlug, String(fm.title ?? newSlug), nextType, pack)
     patches = mergePatch(patches, { path: 'index.md', action: 'write', content: indexMd })
     note = `将 ${sourceRel} 移到 ${destRel}`
     logEntry = `refactor | move ${sourceRel} -> ${destRel}`
@@ -298,16 +294,16 @@ export async function buildRefactorPlan(root: string, options: RefactorOptions):
     if (!content || !contentB) throw new Error('split requires content (remaining page) and contentB (new page)')
     const targetRaw = (options.target ?? '').trim()
     if (!targetRaw) throw new Error('split requires target path for the new page')
-    const destRel = destFromTarget(sourceRel, targetRaw, options.title, 'rename')
+    const destRel = destFromTarget(sourceRel, targetRaw, options.title, 'rename', pack)
     if (pages.some((page) => page.rel === destRel) || destRel === sourceRel) {
       throw new Error(`split target already exists: ${destRel}`)
     }
     const source = pages.find((page) => page.rel === sourceRel)!
     const sourceParsed = parseFrontmatter(source.text)
     const newSlug = slugFromRel(destRel)
-    const newType = typeFromRel(destRel)
+    const newType = typeFromRel(destRel, pack)
     const fallbackTitle = options.title?.trim() || newSlug
-    const left = ensureFrontmatter(content, { ...sourceParsed.frontmatter, type: typeFromRel(sourceRel) })
+    const left = ensureFrontmatter(content, { ...sourceParsed.frontmatter, type: typeFromRel(sourceRel, pack) })
     const right = ensureFrontmatter(contentB, {
       title: fallbackTitle,
       created: todayStamp(),
@@ -320,7 +316,7 @@ export async function buildRefactorPlan(root: string, options: RefactorOptions):
     patches = [
       { path: sourceRel, action: 'write', content: leftLinked.text },
       { path: destRel, action: 'write', content: rightLinked.text },
-      { path: 'index.md', action: 'write', content: addIndexSlug(indexMd, newSlug, fallbackTitle, newType) },
+      { path: 'index.md', action: 'write', content: addIndexSlug(indexMd, newSlug, fallbackTitle, newType, pack) },
     ]
     note = `从 ${sourceRel} 拆出 ${destRel}`
     logEntry = `refactor | split ${sourceRel} -> ${destRel}`

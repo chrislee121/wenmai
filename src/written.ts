@@ -2,7 +2,7 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { buildBacklinkIndex, loadLinkedPages } from './backlinks.js'
 import { parseFrontmatter } from './frontmatter.js'
-import { PAGE_DIRS } from './layout.js'
+import { loadVaultPack } from './pack/index.js'
 import { posixRel } from './paths.js'
 import {
   LEXICAL_BLIND_SPOT,
@@ -94,7 +94,8 @@ export async function checkWritten(
   }
   if (!trimmed) return empty
 
-  const pageFiles = await listMarkdownFiles(root, PAGE_DIRS)
+  const pack = await loadVaultPack(root)
+  const pageFiles = await listMarkdownFiles(root, pack.pageDirs)
   const pages = await loadLinkedPages(root, pageFiles)
   const index = buildBacklinkIndex(pages)
   const hits: WrittenHit[] = []

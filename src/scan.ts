@@ -42,20 +42,31 @@ export interface SourceScanResult {
   notMarkdownCount: number
 }
 
+export interface ScanOptions {
+  extraExtensions?: readonly string[]
+  maxExtraBytes?: number
+}
+
 export async function listSourceMarkdown(roots: string[], maxFiles = MAX_SOURCE_FILES): Promise<SourceMarkdown[]> {
   const scan = await scanSourceMarkdown(roots, maxFiles)
   return scan.files
 }
 
-export async function scanSourceMarkdown(roots: string[], maxFiles = MAX_SOURCE_FILES): Promise<SourceScanResult> {
+export async function scanSourceMarkdown(
+  roots: string[],
+  maxFiles = MAX_SOURCE_FILES,
+  options: ScanOptions = {},
+): Promise<SourceScanResult> {
   const files: SourceMarkdown[] = []
   const skipped: ScanSkip[] = []
   const seen = new Set<string>()
   let truncated = false
   let notMarkdownCount = 0
+  const extra = new Set((options.extraExtensions ?? []).map((ext) => ext.toLowerCase()))
+  const maxExtraBytes = options.maxExtraBytes ?? MAX_SOURCE_BYTES
   const uniqueRoots = uniqueContainingRoots(roots)
   for (const root of uniqueRoots) {
-    const hitCap = await walk(root, root, files, skipped, seen, maxFiles, (n) => {
+    const hitCap = await walk(root, root, files, skipped, seen, maxFiles, extra, maxExtraBytes, (n) => {
       notMarkdownCount += n
     })
     if (hitCap) {
@@ -80,6 +91,8 @@ async function walk(
   skipped: ScanSkip[],
   seen: Set<string>,
   maxFiles: number,
+  extraExtensions: Set<string>,
+  maxExtraBytes: number,
   onNotMarkdown: (count: number) => void,
 ): Promise<boolean> {
   if (files.length >= maxFiles) return true
@@ -94,12 +107,14 @@ async function walk(
     const abs = path.join(current, entry.name)
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name) || entry.name.startsWith('.')) continue
-      const hitCap = await walk(root, abs, files, skipped, seen, maxFiles, onNotMarkdown)
+      const hitCap = await walk(root, abs, files, skipped, seen, maxFiles, extraExtensions, maxExtraBytes, onNotMarkdown)
       if (hitCap) return true
       continue
     }
     if (!entry.isFile()) continue
-    if (!entry.name.endsWith('.md')) {
+    const ext = path.extname(entry.name).toLowerCase()
+    const extra = extraExtensions.has(ext)
+    if (ext !== '.md' && !extra) {
       onNotMarkdown(1)
       continue
     }
@@ -111,7 +126,8 @@ async function walk(
     if (seen.has(abs)) continue
     try {
       const info = await stat(abs)
-      if (info.size > MAX_SOURCE_BYTES) {
+      const limit = extra ? maxExtraBytes : MAX_SOURCE_BYTES
+      if (info.size > limit) {
         skipped.push({ abs, rel, reason: 'too-large' })
         continue
       }

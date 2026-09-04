@@ -2,12 +2,14 @@ export interface Config {
   root: string
   sourceRoots: string[]
   orientBudgetChars: number
+  ingestAdapters: boolean
 }
 
 const DEFAULTS: Config = {
   root: '~/wenmai',
   sourceRoots: [],
   orientBudgetChars: 8000,
+  ingestAdapters: false,
 }
 
 interface StandardIssue {
@@ -35,6 +37,8 @@ function parse(value: unknown): StandardSuccess | StandardFailure {
   const orientBudgetChars =
     input.orientBudgetChars === undefined ? DEFAULTS.orientBudgetChars : input.orientBudgetChars
   const sourceRoots = asStringArray(input.sourceRoots)
+  const ingestAdapters =
+    input.ingestAdapters === undefined ? DEFAULTS.ingestAdapters : input.ingestAdapters
 
   if (typeof root !== 'string' || root.trim() === '') {
     issues.push({ message: 'root must be a non-empty string' })
@@ -47,12 +51,16 @@ function parse(value: unknown): StandardSuccess | StandardFailure {
   if (sourceRoots === undefined) {
     issues.push({ message: 'sourceRoots must be an array of strings' })
   }
+  if (typeof ingestAdapters !== 'boolean') {
+    issues.push({ message: 'ingestAdapters must be a boolean' })
+  }
   if (issues.length > 0) return { issues }
   return {
     value: {
       root: root as string,
       sourceRoots: sourceRoots ?? [],
       orientBudgetChars: orientBudgetChars as number,
+      ingestAdapters: ingestAdapters as boolean,
     },
   }
 }

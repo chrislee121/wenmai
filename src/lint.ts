@@ -1,10 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { createHash } from 'node:crypto'
 import { extractWikilinks, parseFrontmatter } from './frontmatter.js'
-import { PAGE_DIRS, RAW_DIRS } from './layout.js'
-import { posixRel } from './paths.js'
-import { listMarkdownFiles } from './store.js'
+import { loadVaultPack, rawDirsOf } from './pack/index.js'
+import { isRawRel, posixRel, resolveUnder } from './paths.js'
+import { hashRawDocument, listMarkdownFiles, sha256Bytes } from './store.js'
 
 export interface LintDiagnostic {
   severity: 'error' | 'warning'
@@ -21,14 +20,11 @@ export interface LintReport {
   diagnostics: LintDiagnostic[]
 }
 
-function hashBody(body: string): string {
-  return createHash('sha256').update(body, 'utf8').digest('hex')
-}
-
 export async function lintVault(root: string): Promise<LintReport> {
   const diagnostics: LintDiagnostic[] = []
-  const pageFiles = await listMarkdownFiles(root, PAGE_DIRS)
-  const rawFiles = await listMarkdownFiles(root, RAW_DIRS)
+  const pack = await loadVaultPack(root)
+  const pageFiles = await listMarkdownFiles(root, pack.pageDirs)
+  const rawFiles = await listMarkdownFiles(root, rawDirsOf(pack))
   const filesExamined = pageFiles.length + rawFiles.length + 2
 
   let index = ''
@@ -115,7 +111,30 @@ export async function lintVault(root: string): Promise<LintReport> {
       })
       continue
     }
-    if (stored !== hashBody(parsed.body)) {
+    const original = typeof parsed.frontmatter.original === 'string' ? parsed.frontmatter.original.trim() : ''
+    if (original) {
+      try {
+        if (!isRawRel(original)) throw new Error('original must be under raw/')
+        const bytes = await readFile(resolveUnder(root, original))
+        if (stored !== sha256Bytes(bytes)) {
+          diagnostics.push({
+            severity: 'error',
+            code: 'raw-hash-drift',
+            path: rel,
+            message: 'original file sha256 does not match frontmatter; raw/ should be immutable',
+          })
+        }
+      } catch {
+        diagnostics.push({
+          severity: 'error',
+          code: 'raw-original-missing',
+          path: rel,
+          message: `original file missing or unreadable: ${original}`,
+        })
+      }
+      continue
+    }
+    if (stored !== (await hashRawDocument(root, parsed))) {
       diagnostics.push({
         severity: 'error',
         code: 'raw-hash-drift',

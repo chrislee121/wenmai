@@ -9,10 +9,16 @@ test('Config fills defaults', () => {
     assert.equal(result.value.root, '~/wenmai')
     assert.deepEqual(result.value.sourceRoots, [])
     assert.equal(result.value.orientBudgetChars, 8000)
+    assert.equal(result.value.ingestAdapters, false)
   }
 })
 
 test('Config rejects bad sourceRoots', () => {
   const result = Config['~standard'].validate({ sourceRoots: [1] })
+  assert.equal('issues' in result, true)
+})
+
+test('Config rejects bad ingestAdapters', () => {
+  const result = Config['~standard'].validate({ ingestAdapters: 'yes' })
   assert.equal('issues' in result, true)
 })

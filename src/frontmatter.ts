@@ -8,6 +8,8 @@ export interface Frontmatter {
   source_url?: string
   ingested?: string
   sha256?: string
+  adapter?: string
+  original?: string
   [key: string]: unknown
 }
 

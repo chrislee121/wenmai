@@ -1,10 +1,12 @@
-import { readFile } from 'node:fs/promises'
+import { ingestSourceFile } from './adapters/ingest.js'
+import { ADAPTER_EXTENSIONS, MAX_ADAPTER_BYTES, type TranscribeFn } from './adapters/index.js'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import type { RawKind } from './layout.js'
+import type { RawKind } from './pack/types.js'
+import { loadVaultPack } from './pack/index.js'
 import { expandHome, isUnderRoot, PathEscapeError } from './paths.js'
 import { MAX_SOURCE_FILES, scanSourceMarkdown, type ScanSkip } from './scan.js'
-import { appendLog, ingestText, isInitialized, titleFromMarkdown } from './store.js'
+import { appendLog, isInitialized } from './store.js'
 
 export interface IngestDirItem {
   sourcePath: string
@@ -62,6 +64,8 @@ export async function ingestDirectory(
     kind?: RawKind
     dryRun?: boolean
     workspaceCwd?: string
+    adapters?: boolean
+    transcribe?: TranscribeFn
   },
 ): Promise<IngestDirResult> {
   if (!(await isInitialized(vaultRoot))) {
@@ -69,9 +73,17 @@ export async function ingestDirectory(
   }
   const absDir = resolveIngestDir(dir, options.workspaceCwd)
   assertAllowedDir(absDir, options.allowedRoots)
+  const pack = await loadVaultPack(vaultRoot)
   const kind: RawKind = options.kind ?? 'workspace'
+  if (!pack.rawKinds.includes(kind)) {
+    throw new Error(`kind must be ${pack.rawKinds.join(' | ')}`)
+  }
   const dryRun = options.dryRun !== false
-  const scan = await scanSourceMarkdown([absDir], MAX_SOURCE_FILES)
+  const adapters = options.adapters === true
+  const scan = await scanSourceMarkdown([absDir], MAX_SOURCE_FILES, {
+    extraExtensions: adapters ? ADAPTER_EXTENSIONS : [],
+    maxExtraBytes: MAX_ADAPTER_BYTES,
+  })
   const skipped = scan.skipped.map((item) => ({ path: item.abs, reason: item.reason }))
   const hint = scan.truncated
     ? `hit maxFiles ${scan.maxFiles}; split the directory and ingest remaining files`
@@ -95,7 +107,7 @@ export async function ingestDirectory(
       files: scan.files.map((file) => ({
         sourcePath: file.abs,
         rel: file.rel,
-        title: path.basename(file.abs, '.md'),
+        title: path.basename(file.abs, path.extname(file.abs)),
       })),
       skipped,
       compileHint,
@@ -106,15 +118,13 @@ export async function ingestDirectory(
   let ingested = 0
   let deduped = 0
   for (const file of scan.files) {
-    const body = await readFile(file.abs, 'utf8')
-    const title = titleFromMarkdown(body, path.basename(file.abs, '.md'))
-    const result = await ingestText(vaultRoot, {
-      title,
-      body,
+    const result = await ingestSourceFile(vaultRoot, file.abs, {
       kind,
-      sourcePath: file.abs,
+      adapters,
+      transcribe: options.transcribe,
       appendLogEntry: false,
     })
+    const title = result.title
     if (result.deduped) deduped += 1
     else ingested += 1
     files.push({

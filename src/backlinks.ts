@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { extractWikilinks, isArchived, parseFrontmatter } from './frontmatter.js'
-import { PAGE_DIRS } from './layout.js'
+import { loadVaultPack } from './pack/index.js'
 import { posixRel } from './paths.js'
 import { listMarkdownFiles } from './store.js'
 import { readFile } from 'node:fs/promises'
@@ -100,7 +100,8 @@ export async function loadLinkedPages(root: string, files: string[]): Promise<Li
 }
 
 export async function loadBacklinkIndex(root: string): Promise<BacklinkIndex> {
-  const files = await listMarkdownFiles(root, PAGE_DIRS)
+  const pack = await loadVaultPack(root)
+  const files = await listMarkdownFiles(root, pack.pageDirs)
   const pages = await loadLinkedPages(root, files)
   return buildBacklinkIndex(pages)
 }

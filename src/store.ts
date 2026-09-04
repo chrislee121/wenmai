@@ -2,9 +2,11 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseFrontmatter, slugify, todayStamp } from './frontmatter.js'
-import { indexTemplate, logTemplate, PAGE_DIRS, RAW_DIRS, schemaTemplate, TYPE_TO_DIR } from './layout.js'
-import type { PageType, RawKind } from './layout.js'
+import { indexTemplate, logTemplate, schemaTemplate } from './layout.js'
+import { builtinPack, indexHeading, inferTypeFromPath, loadVaultPack, rawDirsOf, writeVaultPack } from './pack/index.js'
+import type { PageType, RawKind } from './pack/types.js'
 import { assertNoSymlinkEscape, isRawRel, posixRel, resolveUnder } from './paths.js'
+import { findRawByHash, rememberRawHash } from './raw-index.js'
 import type { SourceRootOrigin, SourceRootRef } from './source-roots.js'
 
 export interface StatusReport {
@@ -24,10 +26,29 @@ export interface IngestResult {
   sha256: string
   title: string
   compileHint: string
+  originalPath?: string
 }
 
 function sha256(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex')
+}
+
+export function sha256Bytes(data: Uint8Array): string {
+  return createHash('sha256').update(data).digest('hex')
+}
+
+export async function hashRawDocument(
+  root: string,
+  parsed: ReturnType<typeof parseFrontmatter>,
+): Promise<string> {
+  const original = typeof parsed.frontmatter.original === 'string' ? parsed.frontmatter.original.trim() : ''
+  if (!original) return sha256(parsed.body)
+  try {
+    if (!isRawRel(original)) return ''
+    return sha256Bytes(await readFile(resolveUnder(root, original)))
+  } catch {
+    return ''
+  }
 }
 
 async function ensureDir(dir: string): Promise<void> {
@@ -43,19 +64,25 @@ export async function isInitialized(root: string): Promise<boolean> {
   }
 }
 
-export async function initVault(root: string, domain: string): Promise<{ ok: true; created: boolean; root: string }> {
+export async function initVault(
+  root: string,
+  domain: string,
+  options: { pack?: string } = {},
+): Promise<{ ok: true; created: boolean; root: string; pack: string }> {
   await ensureDir(root)
   const existed = await isInitialized(root)
-  for (const dir of [...PAGE_DIRS, ...RAW_DIRS]) {
+  const pack = existed ? await loadVaultPack(root) : builtinPack(options.pack ?? 'writer')
+  if (!existed) await writeVaultPack(root, pack)
+  for (const dir of [...pack.pageDirs, ...rawDirsOf(pack)]) {
     await ensureDir(path.join(root, dir))
   }
   if (!existed) {
     const today = todayStamp()
-    await writeFile(path.join(root, 'SCHEMA.md'), schemaTemplate(domain), 'utf8')
-    await writeFile(path.join(root, 'index.md'), indexTemplate(domain, today), 'utf8')
-    await writeFile(path.join(root, 'log.md'), logTemplate(today, domain), 'utf8')
+    await writeFile(path.join(root, 'SCHEMA.md'), schemaTemplate(domain, pack), 'utf8')
+    await writeFile(path.join(root, 'index.md'), indexTemplate(domain, today, pack), 'utf8')
+    await writeFile(path.join(root, 'log.md'), logTemplate(today, domain, pack), 'utf8')
   }
-  return { ok: true, created: !existed, root }
+  return { ok: true, created: !existed, root, pack: pack.id }
 }
 
 async function countMarkdown(root: string, relDir: string): Promise<number> {
@@ -79,8 +106,9 @@ export async function status(root: string, sourceRoots: Array<string | SourceRoo
   let pageCount = 0
   let rawCount = 0
   if (initialized) {
-    for (const dir of PAGE_DIRS) pageCount += await countMarkdown(root, dir)
-    for (const dir of RAW_DIRS) rawCount += await countMarkdown(root, dir)
+    const pack = await loadVaultPack(root)
+    for (const dir of pack.pageDirs) pageCount += await countMarkdown(root, dir)
+    for (const dir of rawDirsOf(pack)) rawCount += await countMarkdown(root, dir)
   }
   const roots = await Promise.all(
     sourceRoots.map(async (item) => {
@@ -144,20 +172,15 @@ export async function writePage(
   if (options.updateIndex) {
     const parsed = parseFrontmatter(content)
     const title = String(parsed.frontmatter.title ?? path.basename(rel, '.md'))
-    const type = (parsed.frontmatter.type as PageType | undefined) ?? inferTypeFromPath(rel)
+    const type = (parsed.frontmatter.type as PageType | undefined) ?? (await inferTypeFromPathAsync(root, rel))
     await addIndexEntry(root, rel, title, type)
     indexed = true
   }
   return { ok: true, path: posixRel(root, abs), logged, indexed }
 }
 
-function inferTypeFromPath(rel: string): PageType {
-  const top = rel.replace(/\\/g, '/').split('/')[0]
-  if (top === 'entities') return 'entity'
-  if (top === 'concepts') return 'concept'
-  if (top === 'comparisons') return 'comparison'
-  if (top === 'queries') return 'query'
-  return 'summary'
+async function inferTypeFromPathAsync(root: string, rel: string): Promise<PageType> {
+  return inferTypeFromPath(rel, await loadVaultPack(root))
 }
 
 export async function appendLog(root: string, entry: string): Promise<void> {
@@ -175,9 +198,9 @@ export async function appendLog(root: string, entry: string): Promise<void> {
 
 async function addIndexEntry(root: string, rel: string, title: string, type: PageType): Promise<void> {
   const abs = path.join(root, 'index.md')
-  let index = await readFile(abs, 'utf8').catch(() => indexTemplate('unknown', todayStamp()))
-  const dir = TYPE_TO_DIR[type]
-  const heading = dir ? `## ${dir[0]!.toUpperCase()}${dir.slice(1)}` : '## Concepts'
+  const pack = await loadVaultPack(root)
+  let index = await readFile(abs, 'utf8').catch(() => indexTemplate('unknown', todayStamp(), pack))
+  const heading = indexHeading(pack, type)
   const slug = path.basename(rel, '.md')
   const line = `- [[${slug}]] — ${title}`
   if (index.includes(`[[${slug}]]`)) return
@@ -205,25 +228,7 @@ function countIndexLinks(index: string): number {
   return [...index.matchAll(/\[\[([^\]]+)\]\]/g)].length
 }
 
-export async function findRawByHash(root: string, hash: string): Promise<string | null> {
-  for (const dir of RAW_DIRS) {
-    const absDir = path.join(root, dir)
-    let entries: string[] = []
-    try {
-      entries = await readdir(absDir)
-    } catch {
-      continue
-    }
-    for (const name of entries) {
-      if (!name.endsWith('.md')) continue
-      const abs = path.join(absDir, name)
-      const text = await readFile(abs, 'utf8')
-      const parsed = parseFrontmatter(text)
-      if (parsed.frontmatter.sha256 === hash) return posixRel(root, abs)
-    }
-  }
-  return null
-}
+export { findRawByHash } from './raw-index.js'
 
 export function titleFromMarkdown(body: string, fallback: string): string {
   const parsed = parseFrontmatter(body)
@@ -242,14 +247,23 @@ export async function ingestText(
     sourcePath?: string
     sourceUrl?: string
     appendLogEntry?: boolean
+    original?: { bytes: Uint8Array; ext: string; adapter: string }
   },
 ): Promise<IngestResult> {
   if (!(await isInitialized(root))) {
     throw new Error('vault is not initialized; call wenmai_init first')
   }
+  const pack = await loadVaultPack(root)
   const kind: RawKind = options.kind ?? (options.sourcePath ? 'workspace' : 'articles')
+  if (!pack.rawKinds.includes(kind)) {
+    throw new Error(`kind must be ${pack.rawKinds.join(' | ')}`)
+  }
   const body = `${options.body.trimEnd()}\n`
-  const hash = sha256(body)
+  const origExt = options.original?.ext.toLowerCase() ?? ''
+  if (options.original && !origExt.startsWith('.')) {
+    throw new Error('original ext must include the leading dot')
+  }
+  const hash = options.original ? sha256Bytes(options.original.bytes) : sha256(body)
   const existing = await findRawByHash(root, hash)
   if (existing) {
     return {
@@ -263,25 +277,32 @@ export async function ingestText(
   }
   const slug = slugify(options.title)
   const rel = `raw/${kind}/${slug}.md`
+  const origRel = options.original ? `raw/${kind}/${slug}${origExt}` : undefined
   const abs = resolveUnder(root, rel)
   await assertNoSymlinkEscape(root, path.dirname(abs))
   await ensureDir(path.dirname(abs))
+  if (options.original && origRel) {
+    await writeFile(resolveUnder(root, origRel), options.original.bytes)
+  }
   const header = [
     '---',
     options.sourceUrl ? `source_url: ${options.sourceUrl}` : null,
     options.sourcePath ? `source_path: ${options.sourcePath}` : null,
     `ingested: ${todayStamp()}`,
     `sha256: ${hash}`,
+    options.original ? `adapter: ${options.original.adapter}` : null,
+    origRel ? `original: ${origRel}` : null,
     '---',
     '',
   ]
     .filter((line) => line !== null)
     .join('\n')
   await writeFile(abs, `${header}${body}`, 'utf8')
+  await rememberRawHash(root, hash, rel)
   if (options.appendLogEntry !== false) {
     await appendLog(root, `ingest | ${options.title}\n- raw: ${rel}\n- sha256: ${hash}`)
   }
-  return {
+  const result: IngestResult = {
     ok: true,
     deduped: false,
     rawPath: rel,
@@ -289,6 +310,8 @@ export async function ingestText(
     title: options.title,
     compileHint: compileHint(rel),
   }
+  if (origRel) result.originalPath = origRel
+  return result
 }
 
 function compileHint(rawPath: string): string {

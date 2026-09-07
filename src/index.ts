@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { Config, type Config as WenmaiConfig } from './config.js'
+import { makeWenmaiRoutes } from './http/routes.js'
 import { buildOrient } from './orient.js'
 import { resolveRoot } from './paths.js'
 import { SYSTEM_PROMPT_LINES } from './plugin/prompt.js'
@@ -59,4 +60,21 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
   }
   registerWenmaiTools(runtime)
   registerWenmaiCommands(runtime)
+  registerWenmaiUiRoutes(ctx, runtime)
+}
+
+function registerWenmaiUiRoutes(ctx: Context, runtime: PluginRuntime): void {
+  const mount = (host: Context): void => {
+    const server = host.webServer ?? (typeof host.get === 'function' ? (host.get('webServer') as Context['webServer']) : undefined)
+    if (!server?.register) return
+    const disposers = makeWenmaiRoutes(runtime).map((route) => server.register(route))
+    host.effect(() => () => {
+      for (const dispose of disposers) dispose()
+    }, 'wenmai: ui routes')
+  }
+  if (typeof ctx.inject === 'function') {
+    ctx.inject(['webServer'], mount)
+    return
+  }
+  mount(ctx)
 }

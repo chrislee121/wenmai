@@ -26,7 +26,16 @@ declare module '@deepseek-ai/cordis' {
         text: string | ((assembleContext?: unknown) => string)
       }): void
     }
-    effect(factory: () => void | (() => void) | Promise<void | (() => void)>): void
+    effect(factory: () => void | (() => void) | Promise<void | (() => void)>, name?: string): void
+    get?(name: string): unknown
+    inject?(deps: string[], callback: (ctx: Context) => void): void
+    webServer?: {
+      register(route: {
+        kind: 'exact'
+        path: string
+        handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void | Promise<void>
+      }): () => void
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 import { IngestCard, StatusCard, TasksCard, WrittenCard } from './cards.js'
+import { WenmaiDock } from './dock.js'
 import { installWenmaiStyles } from './styles.js'
-import { WenmaiTab } from './tab.js'
 
 type SlotsLike = {
   inject: (name: string, factory: () => unknown) => unknown
@@ -35,20 +35,19 @@ function mountUi(ctx: ClientCtx): () => void {
     yield slots.register({ name: 'tool.call.toolview', key: 'wenmai_status' }, StatusCard)
     yield slots.register({ name: 'tool.call.toolview', key: 'wenmai_tasks' }, TasksCard)
   })
-  const stopTab = slots.inject('conversation.view', () =>
-    slots.register(
+  const stopDock = slots.inject('shell.overlay', function* () {
+    yield slots.register(
       {
-        name: 'conversation.view',
+        name: 'shell.overlay',
         id: 'wenmai',
-        order: 20,
-        label: () => '文脉',
+        order: 10,
       },
-      WenmaiTab,
-    ),
-  )
+      WenmaiDock,
+    )
+  })
   return () => {
     if (typeof stopTools === 'function') stopTools()
-    if (typeof stopTab === 'function') stopTab()
+    if (typeof stopDock === 'function') stopDock()
     stopStyles()
   }
 }

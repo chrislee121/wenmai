@@ -93,8 +93,61 @@ export const WENMAI_CSS = `
   opacity: 0.55;
   cursor: default;
 }
-.wenmai-tab {
+[data-wenmai-split] {
+  display: grid !important;
+  grid-template-columns: var(--wenmai-pane-track, 360px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+}
+[data-wenmai-split] > * {
+  min-width: 0;
+  min-height: 0;
   height: 100%;
+  overflow: hidden;
+}
+.wenmai-pane-host {
+  display: flex;
+  flex-direction: column;
+  background: var(--dsw-alias-bg-base, var(--dsw-alias-bg-default, transparent));
+  border-right: 1px solid var(--dsw-alias-border-l3, color-mix(in srgb, currentColor 12%, transparent));
+}
+.wenmai-pane-host[data-collapsed="true"] {
+  align-items: stretch;
+}
+.wenmai-pane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.wenmai-rail {
+  appearance: none;
+  flex: 1;
+  margin: 0;
+  border: 0;
+  padding: 16px 0;
+  writing-mode: vertical-rl;
+  letter-spacing: 0.18em;
+  font: inherit;
+  font-size: 12px;
+  color: var(--dsw-alias-fg-muted, color-mix(in srgb, currentColor 58%, transparent));
+  background: transparent;
+  cursor: pointer;
+}
+.wenmai-split {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 3;
+  touch-action: none;
+}
+.wenmai-tab {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 20px 22px 32px;
   display: grid;
@@ -102,8 +155,15 @@ export const WENMAI_CSS = `
   align-content: start;
 }
 .wenmai-tab-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wenmai-tab-copy {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 .wenmai-tab-title {
   font-size: 20px;

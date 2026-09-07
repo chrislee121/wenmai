@@ -11,7 +11,6 @@ type ClientCtx = {
   slots?: SlotsLike
   get?: (name: string) => unknown
   effect: (factory: () => void | (() => void), name?: string) => void
-  inject?: (deps: string[], callback: (ctx: ClientCtx) => void) => void
 }
 
 function slotsOf(ctx: ClientCtx): SlotsLike | undefined {
@@ -26,7 +25,7 @@ function mountUi(ctx: ClientCtx): () => void {
   const slots = slotsOf(ctx)
   const stopStyles = installWenmaiStyles()
   if (!slots) {
-    console.warn('[wenmai] slots unavailable; chat cards skipped')
+    console.warn('[wenmai] slots unavailable; client UI skipped')
     return stopStyles
   }
   const stopTools = slots.inject('tool.call.toolview', function* () {
@@ -35,16 +34,16 @@ function mountUi(ctx: ClientCtx): () => void {
     yield slots.register({ name: 'tool.call.toolview', key: 'wenmai_status' }, StatusCard)
     yield slots.register({ name: 'tool.call.toolview', key: 'wenmai_tasks' }, TasksCard)
   })
-  const stopDock = slots.inject('shell.overlay', function* () {
-    yield slots.register(
+  const stopDock = slots.inject('shell.overlay', () =>
+    slots.register(
       {
         name: 'shell.overlay',
         id: 'wenmai',
         order: 10,
       },
       WenmaiDock,
-    )
-  })
+    ),
+  )
   return () => {
     if (typeof stopTools === 'function') stopTools()
     if (typeof stopDock === 'function') stopDock()
@@ -52,8 +51,8 @@ function mountUi(ctx: ClientCtx): () => void {
   }
 }
 
-/** 故意不声明 inject：缺 slots 时跳过 UI，不要卡住整页 Loading plugins。 */
-export const inject: string[] = []
+/** 等 slots 就绪再加载，避免整页卡在 Loading plugins；宿主模块表只有 react。 */
+export const inject = ['slots']
 
 export function apply(ctx: ClientCtx): void {
   ctx.effect(() => {

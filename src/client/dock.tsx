@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { createPortal } from 'react-dom'
 import {
   paneIsCollapsed,
   resolvePaneTrack,
@@ -22,13 +21,24 @@ function readOpen(): boolean {
   return localStorage.getItem(OPEN_KEY) !== '0'
 }
 
+function placeOverHost(pane: HTMLElement, host: HTMLElement): void {
+  const root = pane.offsetParent instanceof HTMLElement ? pane.offsetParent : pane.parentElement
+  const hostBox = host.getBoundingClientRect()
+  const rootBox = root?.getBoundingClientRect() ?? { left: 0, top: 0 }
+  pane.style.left = `${Math.max(0, hostBox.left - rootBox.left)}px`
+  pane.style.width = `${Math.max(0, hostBox.width)}px`
+  pane.style.top = '0px'
+  pane.style.bottom = '0px'
+  pane.style.height = 'auto'
+  pane.style.display = 'flex'
+}
+
 function SplitHandle(props: {
   onDrag: (width: number) => void
   onCommit: (width: number) => void
 }): React.ReactElement {
   const origin = React.useRef(0)
   const base = React.useRef(0)
-  const latest = React.useRef(0)
 
   return React.createElement('div', {
     className: 'wenmai-split',
@@ -41,13 +51,11 @@ function SplitHandle(props: {
       event.preventDefault()
       event.currentTarget.setPointerCapture(event.pointerId)
       origin.current = event.clientX
-      latest.current = event.clientX
       base.current = pane.getBoundingClientRect().width
     },
     onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
       if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-      latest.current = event.clientX
-      props.onDrag(base.current + (latest.current - origin.current))
+      props.onDrag(base.current + (event.clientX - origin.current))
     },
     onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
       if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
@@ -57,7 +65,8 @@ function SplitHandle(props: {
   })
 }
 
-export function WenmaiDock(props: { cwd?: string }): React.ReactElement | null {
+export function WenmaiDock(props: { cwd?: string }): React.ReactElement {
+  const paneRef = React.useRef<HTMLDivElement>(null)
   const [host, setHost] = React.useState<HTMLElement | null>(null)
   const [open, setOpen] = React.useState(readOpen)
   const [preferred, setPreferred] = React.useState(readPreferred)
@@ -68,19 +77,25 @@ export function WenmaiDock(props: { cwd?: string }): React.ReactElement | null {
   const track = resolvePaneTrack(centerWidth, preferred, open)
   const collapsed = paneIsCollapsed(track)
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const parent = host?.parentElement
-    if (!host || !parent) return
+    const pane = paneRef.current
+    if (!host || !parent || !pane) {
+      if (pane) pane.style.display = 'none'
+      return
+    }
     const apply = (): void => {
       const width = parent.getBoundingClientRect().width
-      setCenterWidth(width)
       const next = resolvePaneTrack(width, preferred, open)
       parent.style.setProperty('--wenmai-pane-track', `${next}px`)
       host.dataset.collapsed = paneIsCollapsed(next) ? 'true' : 'false'
+      placeOverHost(pane, host)
+      setCenterWidth((current) => (Math.abs(current - width) < 1 ? current : width))
     }
     apply()
     const observer = new ResizeObserver(apply)
     observer.observe(parent)
+    observer.observe(host)
     return () => observer.disconnect()
   }, [host, open, preferred])
 
@@ -95,31 +110,35 @@ export function WenmaiDock(props: { cwd?: string }): React.ReactElement | null {
     localStorage.setItem(WIDTH_KEY, String(next))
   }
 
-  if (!host) return null
-
-  const body = collapsed
-    ? React.createElement(
-        'button',
-        {
-          type: 'button',
-          className: 'wenmai-rail',
-          title: '展开文脉',
-          onClick: () => persistOpen(true),
-        },
-        '文脉',
-      )
-    : React.createElement(
-        'div',
-        { className: 'wenmai-pane' },
-        React.createElement(WenmaiTab, {
-          cwd: props.cwd,
-          onCollapse: () => persistOpen(false),
-        }),
-        React.createElement(SplitHandle, {
-          onDrag: (width) => setPreferred(width),
-          onCommit: persistWidth,
-        }),
-      )
-
-  return createPortal(body, host)
+  return React.createElement(
+    'div',
+    {
+      ref: paneRef,
+      className: 'wenmai-dock',
+      'data-collapsed': collapsed ? 'true' : undefined,
+    },
+    collapsed
+      ? React.createElement(
+          'button',
+          {
+            type: 'button',
+            className: 'wenmai-rail',
+            title: '展开文脉',
+            onClick: () => persistOpen(true),
+          },
+          '文脉',
+        )
+      : React.createElement(
+          'div',
+          { className: 'wenmai-pane' },
+          React.createElement(WenmaiTab, {
+            cwd: props.cwd,
+            onCollapse: () => persistOpen(false),
+          }),
+          React.createElement(SplitHandle, {
+            onDrag: (width) => setPreferred(width),
+            onCommit: persistWidth,
+          }),
+        ),
+  )
 }

@@ -106,13 +106,19 @@ export const WENMAI_CSS = `
   overflow: hidden;
 }
 .wenmai-pane-host {
+  background: transparent;
+}
+.wenmai-dock {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  pointer-events: auto;
+  box-sizing: border-box;
   background: var(--dsw-alias-bg-base, var(--dsw-alias-bg-default, transparent));
   border-right: 1px solid var(--dsw-alias-border-l3, color-mix(in srgb, currentColor 12%, transparent));
-}
-.wenmai-pane-host[data-collapsed="true"] {
-  align-items: stretch;
 }
 .wenmai-pane {
   position: relative;

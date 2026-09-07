@@ -66,7 +66,14 @@ npx --yes @deepseek-ai/dsh web
 
 若要钉死已测过的宿主版本，把上面的 `@deepseek-ai/dsh` 换成 `@deepseek-ai/dsh@0.1.0-rc.8`。
 
-`dump-config` 里应出现 `dsh-wenmai` 层和 `id: wenmai`。浏览器打开 <http://127.0.0.1:3080>。
+`dump-config` 里应出现 `dsh-wenmai` 层和 `id: wenmai`。浏览器打开 <http://127.0.0.1:3080>。问「这个选题写过没有」时，对话里会直接出现三态卡片；会话页签里也有一个「文脉」页，用来查库状态和今天该修什么。
+
+<p align="center">
+  <img src="docs/ui-written.png" alt="选题三态卡片：已经写过" width="720">
+</p>
+<p align="center">
+  <img src="docs/ui-tab.png" alt="会话里的文脉页签" width="720">
+</p>
 
 从本仓库源码开发时，才用本地路径（改 TypeScript 后执行 `pnpm build` 并重启 `dsh web`）：
 

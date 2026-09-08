@@ -149,7 +149,7 @@ export function StatusBody(props: { model: StatusCardModel }): React.ReactElemen
     React.createElement(
       'div',
       { className: 'wenmai-verdict' },
-      model.error ? '读不到库' : model.initialized ? '库已就绪' : '还没初始化',
+      model.error ? '读不到库' : model.running ? '正在读取…' : model.initialized ? '库已就绪' : '还没初始化',
     ),
     React.createElement(
       'div',
@@ -249,7 +249,7 @@ function TasksBody(props: { model: TasksCardModel; cwd?: string }): React.ReactE
     React.createElement(
       'div',
       { className: 'wenmai-verdict' },
-      model.error ? '读不到任务' : model.taskCount === 0 ? '没有待修项' : `${model.taskCount} 条待处理`,
+      model.error ? '读不到任务' : model.running ? '正在读取…' : model.taskCount === 0 ? '没有待修项' : `${model.taskCount} 条待处理`,
     ),
     model.error ? React.createElement('div', { className: 'wenmai-reason' }, model.error) : null,
     model.tasks.length > 0

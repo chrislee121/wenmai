@@ -144,12 +144,21 @@ export const WENMAI_CSS = `
 .wenmai-split {
   position: absolute;
   top: 0;
-  right: -3px;
-  width: 8px;
+  right: -5px;
+  width: 10px;
   height: 100%;
   cursor: col-resize;
-  z-index: 3;
+  z-index: 1;
   touch-action: none;
+}
+.wenmai-search,
+.wenmai-tab-head {
+  position: relative;
+  z-index: 2;
+}
+.wenmai-search .wenmai-btn,
+.wenmai-search input {
+  pointer-events: auto;
 }
 .wenmai-tab {
   flex: 1;

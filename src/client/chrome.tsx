@@ -23,12 +23,13 @@ export function Button(props: {
   children: React.ReactNode
   primary?: boolean
   disabled?: boolean
+  type?: 'button' | 'submit'
   onClick?: () => void
 }): React.ReactElement {
   return React.createElement(
     'button',
     {
-      type: 'button',
+      type: props.type ?? 'button',
       className: 'wenmai-btn',
       'data-primary': props.primary ? 'true' : undefined,
       disabled: props.disabled,

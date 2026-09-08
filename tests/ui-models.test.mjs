@@ -77,6 +77,8 @@ test('status and tasks models tolerate errors', () => {
   const status = statusCardModel({ ok: false, error: 'vault missing' })
   assert.equal(status.initialized, false)
   assert.match(status.error ?? '', /vault missing/)
+  const loading = statusCardModel(null, true)
+  assert.equal(loading.running, true)
   const tasks = tasksCardModel({
     ok: true,
     op: 'list',

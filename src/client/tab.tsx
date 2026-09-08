@@ -21,13 +21,20 @@ export function WenmaiTab(props: { cwd?: string; onCollapse?: () => void }): Rea
   React.useEffect(() => {
     let cancelled = false
     void (async () => {
-      const [statusResult, tasksResult] = await Promise.all([
-        wenmaiApi({ op: 'status', workspace: props.cwd }),
-        wenmaiApi({ op: 'tasks', taskOp: 'list', workspace: props.cwd }),
-      ])
-      if (cancelled) return
-      setStatus(statusCardModel(statusResult, false))
-      setTasks(tasksCardModel(tasksResult, false))
+      try {
+        const [statusResult, tasksResult] = await Promise.all([
+          wenmaiApi({ op: 'status', workspace: props.cwd }),
+          wenmaiApi({ op: 'tasks', taskOp: 'list', workspace: props.cwd }),
+        ])
+        if (cancelled) return
+        setStatus(statusCardModel(statusResult, false))
+        setTasks(tasksCardModel(tasksResult, false))
+      } catch (error) {
+        if (cancelled) return
+        const failed = { ok: false, error: error instanceof Error ? error.message : '请求失败' }
+        setStatus(statusCardModel(failed, false))
+        setTasks(tasksCardModel(failed, false))
+      }
     })()
     return () => {
       cancelled = true
@@ -38,9 +45,21 @@ export function WenmaiTab(props: { cwd?: string; onCollapse?: () => void }): Rea
     const trimmed = query.trim()
     if (!trimmed) return
     setChecking(true)
+    setWritten(writtenCardModel(null, true))
     try {
       const result = await wenmaiApi({ op: 'written', query: trimmed, workspace: props.cwd })
       setWritten(writtenCardModel(result, false))
+    } catch (error) {
+      setWritten(
+        writtenCardModel(
+          {
+            ok: false,
+            query: trimmed,
+            error: error instanceof Error ? error.message : '查询失败',
+          },
+          false,
+        ),
+      )
     } finally {
       setChecking(false)
     }
@@ -73,6 +92,7 @@ export function WenmaiTab(props: { cwd?: string; onCollapse?: () => void }): Rea
         className: 'wenmai-search',
         onSubmit: (event: React.FormEvent) => {
           event.preventDefault()
+          event.stopPropagation()
           void check()
         },
       },
@@ -81,7 +101,11 @@ export function WenmaiTab(props: { cwd?: string; onCollapse?: () => void }): Rea
         placeholder: '这个选题我写过没有',
         onChange: (event: React.ChangeEvent<HTMLInputElement>) => setQuery(event.target.value),
       }),
-      React.createElement(Button, { primary: true, disabled: checking || !query.trim(), onClick: () => void check() }, checking ? '在查…' : '查写过没有'),
+      React.createElement(
+        Button,
+        { type: 'submit', primary: true, disabled: checking || !query.trim() },
+        checking ? '在查…' : '查写过没有',
+      ),
     ),
     written ? React.createElement(WrittenBody, { model: written }) : null,
     React.createElement(StatusBody, { model: status }),

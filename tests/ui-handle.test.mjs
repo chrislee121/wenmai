@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -51,6 +51,22 @@ test('ui handle ingest-confirm writes raw/ after a listed directory', async () =
     assert.equal(result.dryRun, false)
     assert.equal(result.ingested, 1)
   })
+})
+
+test('ui handle init creates SCHEMA on an empty vault', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'wenmai-ui-init-'))
+  try {
+    const created = await handleUiRequest(runtime(dir), { op: 'init' })
+    assert.equal(created.ok, true)
+    assert.equal(created.initialized, true)
+    const schema = await readFile(path.join(dir, 'SCHEMA.md'), 'utf8')
+    assert.match(schema, /文章、脚本、文案与工作文档/)
+    const again = await handleUiRequest(runtime(dir), { op: 'init', domain: '忽略这次' })
+    assert.equal(again.ok, true)
+    assert.equal(again.initialized, true)
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
 })
 
 test('ui handle rejects unknown ops and home ingest', async () => {

@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { DEFAULT_WRITER_DOMAIN } from '../ui/defaults.js'
 import {
   ingestCardModel,
   isToolRunning,
@@ -141,23 +142,27 @@ export function IngestCard(props: ToolViewProps): React.ReactElement {
   return React.createElement(IngestBody, { model, cwd: props.cwd })
 }
 
-export function StatusBody(props: { model: StatusCardModel }): React.ReactElement {
+function statusCounts(model: StatusCardModel): string {
+  if (model.error) return model.error
+  if (model.running) return '正在读取…'
+  const counts = `编译页 ${model.pageCount} · 原文 ${model.rawCount}`
+  return model.root ? `${counts} · ${model.root}` : counts
+}
+
+export function StatusBody(props: { model: StatusCardModel; compact?: boolean }): React.ReactElement {
   const { model } = props
+  if (props.compact) {
+    return React.createElement('div', { className: 'wenmai-status-foot' }, statusCounts(model))
+  }
   return React.createElement(
     Card,
     { kicker: '文脉 · 状态' },
     React.createElement(
       'div',
       { className: 'wenmai-verdict' },
-      model.error ? '读不到库' : model.running ? '正在读取…' : model.initialized ? '库已就绪' : '还没初始化',
+      model.error ? '读不到库' : model.running ? '正在读取…' : model.initialized ? '库已就绪' : '库还没建',
     ),
-    React.createElement(
-      'div',
-      { className: 'wenmai-meta' },
-      model.error
-        ? model.error
-        : `编译页 ${model.pageCount} · 原文 ${model.rawCount}${model.root ? ` · ${model.root}` : ''}`,
-    ),
+    React.createElement('div', { className: 'wenmai-meta' }, statusCounts(model)),
     model.sourceRoots.length > 0
       ? React.createElement(
           'ul',
@@ -176,6 +181,62 @@ export function StatusBody(props: { model: StatusCardModel }): React.ReactElemen
           ),
         )
       : null,
+  )
+}
+
+export function InitPanel(props: {
+  cwd?: string
+  onReady: (status: StatusCardModel) => void
+}): React.ReactElement {
+  const [domain, setDomain] = React.useState(DEFAULT_WRITER_DOMAIN)
+  const [busy, setBusy] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const create = async (): Promise<void> => {
+    const trimmed = domain.trim() || DEFAULT_WRITER_DOMAIN
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await wenmaiApi({
+        op: 'init',
+        domain: trimmed,
+        workspace: props.cwd,
+      })
+      const next = statusCardModel(result, false)
+      if (next.error) {
+        setError(next.error)
+        return
+      }
+      props.onReady(next)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return React.createElement(
+    Card,
+    { kicker: '文脉 · 开始' },
+    React.createElement('div', { className: 'wenmai-verdict' }, '先建这个库'),
+    React.createElement(
+      'div',
+      { className: 'wenmai-reason' },
+      '建库之后才能查撞稿、收旧稿、审视。默认用写作包，不改你现在的稿。',
+    ),
+    React.createElement('input', {
+      className: 'wenmai-field',
+      value: domain,
+      'aria-label': '这个库覆盖的领域',
+      onChange: (event: React.ChangeEvent<HTMLInputElement>) => setDomain(event.target.value),
+    }),
+    error ? React.createElement('div', { className: 'wenmai-reason' }, error) : null,
+    React.createElement(
+      Actions,
+      null,
+      React.createElement(
+        Button,
+        { primary: true, disabled: busy, onClick: () => void create() },
+        busy ? '正在建…' : '建这个库',
+      ),
+    ),
   )
 }
 

@@ -4,8 +4,9 @@ import { effectiveRoots, rootPaths } from '../plugin/roots.js'
 import { clampLimit } from '../plugin/register.js'
 import { normalizeKind } from '../plugin/ingest-args.js'
 import type { PluginRuntime } from '../plugin/types.js'
-import { status } from '../store.js'
+import { initVault, status } from '../store.js'
 import { runTasks, TASK_OPS, type TaskOp } from '../tasks/index.js'
+import { DEFAULT_WRITER_DOMAIN } from '../ui/defaults.js'
 import { checkWritten } from '../written.js'
 import type { UiRequestBody } from './protocol.js'
 
@@ -31,6 +32,15 @@ export async function handleUiRequest(runtime: UiHandleRuntime, body: UiRequestB
       const query = typeof body.query === 'string' ? body.query : ''
       const roots = await effectiveRoots(runtime.root, runtime.pluginRoots, agent)
       return await checkWritten(runtime.root, rootPaths(roots), query, clampLimit(undefined))
+    }
+    if (op === 'init') {
+      const domain =
+        typeof body.domain === 'string' && body.domain.trim()
+          ? body.domain.trim()
+          : DEFAULT_WRITER_DOMAIN
+      await initVault(runtime.root, domain, { pack: 'writer' })
+      await runtime.refreshOrient()
+      return await status(runtime.root, await effectiveRoots(runtime.root, runtime.pluginRoots, agent))
     }
     if (op === 'ingest-confirm') {
       const dir = typeof body.dir === 'string' ? body.dir.trim() : ''

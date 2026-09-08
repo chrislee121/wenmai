@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { readPageDraft } from '../ui/handoff.js'
-import { DEFAULT_WRITER_DOMAIN } from '../ui/defaults.js'
+import { DEFAULT_WRITER_DOMAIN, tasksEmptyCopy } from '../ui/defaults.js'
 import {
   ingestCardModel,
   isToolRunning,
@@ -358,12 +358,14 @@ export function StatusCard(props: ToolViewProps): React.ReactElement {
   return React.createElement(StatusBody, { model })
 }
 
-function TasksBody(props: { model: TasksCardModel; cwd?: string }): React.ReactElement {
+function TasksBody(props: { model: TasksCardModel; cwd?: string; rawCount?: number }): React.ReactElement {
   const [model, setModel] = React.useState(props.model)
   const [busyId, setBusyId] = React.useState<string | null>(null)
+  const [reviewing, setReviewing] = React.useState(false)
   React.useEffect(() => {
     setModel(props.model)
   }, [props.model])
+  const locked = busyId !== null || reviewing
   const act = async (taskOp: 'start' | 'snooze' | 'wontfix', id: string): Promise<void> => {
     setBusyId(id)
     try {
@@ -377,6 +379,16 @@ function TasksBody(props: { model: TasksCardModel; cwd?: string }): React.ReactE
       setModel(tasksCardModel(result, false))
     } finally {
       setBusyId(null)
+    }
+  }
+  const review = async (): Promise<void> => {
+    if (locked) return
+    setReviewing(true)
+    try {
+      const result = await wenmaiApi({ op: 'tasks', taskOp: 'list', workspace: props.cwd })
+      setModel(tasksCardModel(result, false))
+    } finally {
+      setReviewing(false)
     }
   }
   const row = (task: TaskCardItem): React.ReactElement =>
@@ -399,43 +411,55 @@ function TasksBody(props: { model: TasksCardModel; cwd?: string }): React.ReactE
           Button,
           {
             primary: true,
-            disabled: busyId !== null,
+            disabled: locked,
             onClick: () => void act('start', task.id),
           },
           '开始修',
         ),
         React.createElement(
           Button,
-          { disabled: busyId !== null, onClick: () => void act('snooze', task.id) },
+          { disabled: locked, onClick: () => void act('snooze', task.id) },
           '稍后',
         ),
         React.createElement(
           Button,
-          { disabled: busyId !== null, onClick: () => void act('wontfix', task.id) },
+          { disabled: locked, onClick: () => void act('wontfix', task.id) },
           '不算问题',
         ),
       ),
     )
+  const headline = model.error
+    ? '读不到任务'
+    : model.running || reviewing
+      ? '正在审视…'
+      : model.taskCount === 0
+        ? '没有待修项'
+        : `${model.taskCount} 条待处理`
   return React.createElement(
     Card,
     { kicker: '文脉 · 今天该修什么' },
+    React.createElement('div', { className: 'wenmai-verdict' }, headline),
     React.createElement(
-      'div',
-      { className: 'wenmai-verdict' },
-      model.error ? '读不到任务' : model.running ? '正在读取…' : model.taskCount === 0 ? '没有待修项' : `${model.taskCount} 条待处理`,
+      Actions,
+      null,
+      React.createElement(
+        Button,
+        { primary: true, disabled: locked || model.running, onClick: () => void review() },
+        reviewing ? '正在审视…' : '审视知识库',
+      ),
     ),
     model.error ? React.createElement('div', { className: 'wenmai-reason' }, model.error) : null,
     model.tasks.length > 0
       ? React.createElement('ul', { className: 'wenmai-list' }, model.tasks.map(row))
-      : React.createElement(
-          'div',
-          { className: 'wenmai-empty' },
-          '没有 finding 就没有任务。修某一条仍走重构，默认先预览。',
-        ),
+      : React.createElement('div', { className: 'wenmai-empty' }, tasksEmptyCopy(props.rawCount)),
   )
 }
 
-export function TasksPanel(props: { model: TasksCardModel; cwd?: string }): React.ReactElement {
+export function TasksPanel(props: {
+  model: TasksCardModel
+  cwd?: string
+  rawCount?: number
+}): React.ReactElement {
   return React.createElement(TasksBody, props)
 }
 

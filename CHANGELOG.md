@@ -4,8 +4,13 @@
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-09-08
+
+中间栏能建库、收旧稿、把命中交给对话去读，并一键审视今天该修什么。
+
 ### 新增
 
+- 空库可以在中间栏直接建库，不必先去对话里说初始化
 - 中间栏标题改为「文脉WENMAI」，并加上标志
 - 查到旧稿时能看到重叠片段，并能把「读这一页」填进右侧输入框
 - 中间栏可以预览并确认收录当前工作区或贴进来的目录
@@ -138,6 +143,7 @@ DeepSeek Harness 对话框里可以直接看文脉结果，不必读一整段 JS
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 
+[0.6.2]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.2
 [0.6.1]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.1
 [0.6.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.0
 [0.5.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.5.0

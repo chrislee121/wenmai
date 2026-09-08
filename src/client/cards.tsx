@@ -221,7 +221,7 @@ export function IngestPanel(props: { cwd?: string; onChanged?: () => void }): Re
     React.createElement(
       'form',
       {
-        className: 'wenmai-search',
+        className: 'wenmai-inline-form',
         onSubmit: (event: React.FormEvent) => {
           event.preventDefault()
           event.stopPropagation()

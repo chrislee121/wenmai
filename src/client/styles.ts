@@ -165,12 +165,15 @@ export const WENMAI_CSS = `
   touch-action: none;
 }
 .wenmai-search,
+.wenmai-inline-form,
 .wenmai-tab-head {
   position: relative;
   z-index: 2;
 }
 .wenmai-search .wenmai-btn,
-.wenmai-search input {
+.wenmai-search input,
+.wenmai-inline-form .wenmai-btn,
+.wenmai-inline-form input {
   pointer-events: auto;
 }
 .wenmai-tab {
@@ -198,7 +201,8 @@ export const WENMAI_CSS = `
   font-weight: 650;
   letter-spacing: -0.02em;
 }
-.wenmai-search {
+.wenmai-search,
+.wenmai-inline-form {
   display: flex;
   gap: 8px;
 }

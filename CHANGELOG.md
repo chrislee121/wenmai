@@ -2,6 +2,20 @@
 
 本文件记录文脉 Wenmai 的公开变更。版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.1] - 2026-09-08
+
+DeepSeek Harness 对话框里可以直接看文脉结果，不必读一整段 JSON。
+
+### 新增
+
+- 对话卡片：选题三态（可以写 / 动笔前先看旧稿 / 已经写过）、目录收录预览与确认、库状态、今天该修什么
+- 中间栏常驻文脉面板：查写过没有、看库是否就绪、列出待修项；对话固定在右侧
+- 收录确认与任务按钮走本机接口，不把内容传到外网
+
+### 修复
+
+- 文脉图形界面不再依赖宿主没有的 `react-dom`，中间栏能真正画出来
+
 ## [0.6.0] - 2026-09-04
 
 把知识库结构改成 pack 配置，并补上原文哈希索引与可选的本地 PDF/Word 转写。核心仍不解析这些格式。
@@ -17,7 +31,6 @@
 
 - 核心不解析 PDF/Word；关适配器时仍只收 Markdown。解析逻辑不进 store / written / review
 - 插件注册拆到 `src/plugin/`，装配入口不变
-- 对应 SemVer MINOR（核心底座，不是领域方案）
 
 ## [0.5.0] - 2026-09-03
 
@@ -111,6 +124,7 @@
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 
+[0.6.1]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.1
 [0.6.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.0
 [0.5.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.5.0
 [0.4.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.4.0

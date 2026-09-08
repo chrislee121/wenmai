@@ -8,7 +8,7 @@ import {
   type WrittenCardModel,
 } from '../ui/models.js'
 import { wenmaiApi } from './api.js'
-import { Button } from './chrome.js'
+import { Brand, Button } from './chrome.js'
 import { InitPanel, IngestPanel, StatusBody, TasksPanel, WrittenBody } from './cards.js'
 
 export function WenmaiTab(props: { cwd?: string; onCollapse?: () => void }): React.ReactElement {
@@ -94,7 +94,7 @@ export function WenmaiTab(props: { cwd?: string; onCollapse?: () => void }): Rea
       React.createElement(
         'div',
         { className: 'wenmai-tab-copy' },
-        React.createElement('div', { className: 'wenmai-kicker' }, 'WENMAI'),
+        React.createElement(Brand, null),
         React.createElement('div', { className: 'wenmai-tab-title' }, '写之前先看一眼'),
         React.createElement(
           'div',

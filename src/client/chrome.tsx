@@ -1,4 +1,25 @@
 import * as React from 'react'
+import { WENMAI_MARK } from './mark.js'
+
+export function Brand(): React.ReactElement {
+  return React.createElement(
+    'div',
+    { className: 'wenmai-brand' },
+    React.createElement('img', {
+      className: 'wenmai-mark',
+      src: WENMAI_MARK,
+      alt: '',
+      width: 16,
+      height: 16,
+    }),
+    React.createElement(
+      'span',
+      { className: 'wenmai-brand-name' },
+      '文脉',
+      React.createElement('span', { className: 'wenmai-brand-en' }, 'WENMAI'),
+    ),
+  )
+}
 
 export function Card(props: {
   tone?: 'new' | 'review' | 'duplicate' | 'plain'

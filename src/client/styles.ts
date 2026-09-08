@@ -30,6 +30,27 @@ export const WENMAI_CSS = `
   text-transform: uppercase;
   color: var(--dsw-alias-fg-muted, color-mix(in srgb, currentColor 55%, transparent));
 }
+.wenmai-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--dsw-alias-fg-muted, color-mix(in srgb, currentColor 55%, transparent));
+}
+.wenmai-mark {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  display: block;
+}
+.wenmai-brand-name {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+.wenmai-brand-en {
+  letter-spacing: 0.14em;
+}
 .wenmai-verdict {
   font-size: 22px;
   line-height: 1.2;

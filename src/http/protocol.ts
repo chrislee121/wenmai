@@ -1,6 +1,13 @@
 export const WENMAI_API_PREFIX = '/api/wenmai'
 
-export type UiOpName = 'status' | 'written' | 'init' | 'ingest-confirm' | 'tasks'
+export type UiOpName =
+  | 'status'
+  | 'written'
+  | 'init'
+  | 'ingest-preview'
+  | 'ingest-confirm'
+  | 'source-add'
+  | 'tasks'
 
 export interface UiRequestBody {
   op?: string

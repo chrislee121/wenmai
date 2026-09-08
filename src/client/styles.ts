@@ -230,6 +230,10 @@ export const WENMAI_CSS = `
   color: var(--dsw-alias-fg-muted, color-mix(in srgb, currentColor 58%, transparent));
   padding-top: 8px;
 }
+.wenmai-ingest-result {
+  display: grid;
+  gap: 10px;
+}
 `
 
 export function installWenmaiStyles(): () => void {

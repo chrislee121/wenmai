@@ -9,7 +9,7 @@ import {
 } from '../ui/models.js'
 import { wenmaiApi } from './api.js'
 import { Button } from './chrome.js'
-import { InitPanel, StatusBody, TasksPanel, WrittenBody } from './cards.js'
+import { InitPanel, IngestPanel, StatusBody, TasksPanel, WrittenBody } from './cards.js'
 
 export function WenmaiTab(props: { cwd?: string; onCollapse?: () => void }): React.ReactElement {
   const [query, setQuery] = React.useState('')
@@ -75,6 +75,11 @@ export function WenmaiTab(props: { cwd?: string; onCollapse?: () => void }): Rea
     }
   }
 
+  const refreshStatus = async (): Promise<void> => {
+    const result = await wenmaiApi({ op: 'status', workspace: props.cwd })
+    setStatus(statusCardModel(result, false))
+  }
+
   const onReady = (next: StatusCardModel): void => {
     setStatus(next)
     void loadTasks()
@@ -133,6 +138,7 @@ export function WenmaiTab(props: { cwd?: string; onCollapse?: () => void }): Rea
     !status.running && !status.initialized && !status.error
       ? React.createElement(InitPanel, { cwd: props.cwd, onReady })
       : null,
+    ready ? React.createElement(IngestPanel, { cwd: props.cwd, onChanged: () => void refreshStatus() }) : null,
     ready ? React.createElement(TasksPanel, { model: tasks, cwd: props.cwd }) : null,
     React.createElement(StatusBody, { model: status, compact: true }),
   )

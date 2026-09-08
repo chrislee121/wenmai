@@ -2,7 +2,7 @@
 
 本文件记录文脉 Wenmai 的公开变更。版本遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.6.1] - 2026-09-08
 
 DeepSeek Harness 对话框里可以直接看文脉结果，不必读一整段 JSON。
 
@@ -124,6 +124,7 @@ DeepSeek Harness 对话框里可以直接看文脉结果，不必读一整段 JS
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 
+[0.6.1]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.1
 [0.6.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.0
 [0.5.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.5.0
 [0.4.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.4.0

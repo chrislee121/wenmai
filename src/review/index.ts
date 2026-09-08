@@ -2,13 +2,13 @@ import { buildBacklinkIndex } from '../backlinks.js'
 import { detectConflictCandidates } from './conflicts.js'
 import { loadReviewCorpus } from './corpus.js'
 import { DEFAULT_DUPLICATE_THRESHOLD, findDuplicatePairs, LEXICAL_BLIND_SPOT } from './duplicates.js'
-import { finding, type Finding } from './findings.js'
+import { finding, fingerprint, type Finding } from './findings.js'
 import { computeMetrics, type ReviewMetrics } from './metrics.js'
 import { detectStaleness, DEFAULT_TTL_DAYS } from './staleness.js'
 import { filterFindings, markFindings, readReviewState } from './state.js'
 import { detectStructure } from './structure.js'
 
-export { LEXICAL_BLIND_SPOT }
+export { LEXICAL_BLIND_SPOT, fingerprint }
 export type { Finding, ReviewMetrics }
 export type { ReviewStatus, TaskPriority } from './state.js'
 

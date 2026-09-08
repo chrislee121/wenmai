@@ -8,6 +8,7 @@ export type UiOpName =
   | 'ingest-confirm'
   | 'source-add'
   | 'tasks'
+  | 'research'
 
 export interface UiRequestBody {
   op?: string

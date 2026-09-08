@@ -3,7 +3,7 @@ import type { TaskPriority } from '../review/state.js'
 
 export type TaskOp = 'list' | 'start' | 'done' | 'snooze' | 'wontfix'
 export type TaskStatus = 'open' | 'in_progress' | 'done' | 'snoozed' | 'wontfix'
-export type SuggestedOp = 'merge' | 'split' | 'link' | 'move' | 'rewrite'
+export type SuggestedOp = 'merge' | 'split' | 'link' | 'move' | 'rewrite' | 'research'
 
 export const TASK_OPS = ['list', 'start', 'done', 'snooze', 'wontfix'] as const
 
@@ -24,6 +24,7 @@ export interface TaskOptions {
   priority?: string
   snoozeDays?: number
   includeDismissed?: boolean
+  research?: boolean
 }
 
 export interface TaskReport {

@@ -4,7 +4,7 @@
 
 # 文脉 Wenmai
 
-当前版本：**v0.6.2**
+当前版本：**v0.7.0**
 
 把写过的东西织成可查的文脉。
 
@@ -46,7 +46,7 @@
 
 ### 1. 安装插件
 
-npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.6.2**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
+npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.7.0**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
 
 已安装 `dsh` 时：
 
@@ -113,11 +113,13 @@ dsh plugin --profile web remove dsh-wenmai
       - '~/Documents/writing/scripts'
     orientBudgetChars: 8000
     ingestAdapters: false
+    research: false
 ```
 
 - `root`：文脉数据根，默认 `~/wenmai`
 - `sourceRoots`：额外扫描根，叠加在会话工作区之上
 - `ingestAdapters`：是否用本机 `pdftotext` / `pandoc` 转写 PDF / Word，默认关。核心不解析这些格式
+- `research`：目录点了但没写时，是否在本机旧稿里查料。默认关。不抓网页，不生成正文
 - 不要把家目录整盘配进去
 
 ### 4. 初始化
@@ -289,13 +291,14 @@ dsh plugin --profile web remove dsh-wenmai
 | `wenmai_status` | 库是否已初始化、编译页/原文数量、当前会扫哪些 sourceRoots | 无 |
 | `wenmai_init` | 按领域创建目录树，以及 `SCHEMA.md` / `index.md` / `log.md`；新库写出 `.wenmai/pack.json` | **`domain`**（必填）：这个库覆盖什么；`pack`（可选，默认 `writer`） |
 | `wenmai_ingest` | 把文件、粘贴文本或整个目录复制进 `raw/`，之后不可改。编译是下一步 `write`。目录模式默认 dry-run。PDF / Word 默认拒收，需打开 `ingestAdapters` | 单篇：`filePath` 和/或 `content`；`title`。目录：`dir`（必须在工作区或 sourceRoots 内）；`dryRun`（默认 true）。`kind`（`articles` / `scripts` / `docs` / `papers` / `workspace` / `transcripts` / `assets`） |
-| `wenmai_written` | 动笔前拦截：搜编译页与工作区原文，给出 NEW / REVIEW / DUPLICATE，并附重叠片段。命中页若落在未完成任务里会带上 `openTasks`。词法查重抓不到换词重写 | **`query`**（必填）；`limit`（默认 20） |
+| `wenmai_written` | 动笔前拦截：搜编译页与工作区原文，给出 NEW / REVIEW / DUPLICATE，并附重叠片段。命中页若落在未完成任务里会带上 `openTasks`。目录已点名但没写的题，即使判 NEW 也会带上缺口任务。词法查重抓不到换词重写 | **`query`**（必填）；`limit`（默认 20） |
 | `wenmai_search` | 在文脉库内做词法搜索（编译页 + `raw/`） | **`query`**（必填）；`limit`（默认 20） |
 | `wenmai_read` | 按相对路径读文脉根下的文件，例如 `concepts/foo.md` | **`path`**（必填）；`offset`（从第几行）；`limit`（读多少行） |
-| `wenmai_write` | 写编译页（YAML + Markdown）。**拒绝写入 `raw/`** | **`path`**、**`content`**（必填）；`log`（追加到 `log.md`）；`updateIndex`（是否把 `[[slug]]` 写入 index） |
+| `wenmai_write` | 写编译页（YAML + Markdown）。**拒绝写入 `raw/`** | **`path`**、**`content`**（必填）；`log`（追加到 `log.md`）；`updateIndex`（是否把 `[[slug]]` 写入 index）；`finding`（成功后 ack） |
 | `wenmai_lint` | 只读体检：孤儿页、断掉的 `[[wikilinks]]`、缺 frontmatter、raw sha256 漂移。不自动修复 | 无 |
 | `wenmai_review` | 只读审视：把 raw 哈希漂移传播到编译页、词法重复、冲突候选、结构问题、健康度数字。不改页面。可用 finding id 做 ack / snooze / wontfix | `includeDismissed`；`ttlDays`（默认 180）；`duplicateThreshold`（默认 0.5）；`ack` / `snooze` / `wontfix`；`snoozeDays` |
 | `wenmai_tasks` | 把 finding 投影成任务队列（Why / Related Pages / Expected Result / Priority / Status）。不另建编号。完成即 ack | `op`（`list` 默认 / `start` / `done` / `snooze` / `wontfix`）；`id`；`priority`；`snoozeDays`；`includeDismissed` |
+| `wenmai_research` | 针对目录点了但没写的缺口，在本机 `raw/` 与 sourceRoots 里查旧稿。默认关。只出简报，不生成正文、不写盘、不抓网页 | `id`（finding 指纹；省略则列出全部合格缺口） |
 | `wenmai_refactor` | 重构编译页：merge / split / rename / move / link / rewrite / archive。默认 dry-run。禁止改 `raw/`。不生成正文。成功 apply 后可 ack finding；`undo` 只撤销上一笔 | **`op`** 或 `undo`；`dryRun`（默认 true）；`source`；`target`；`title`；`content` / `contentB`；`finding` |
 | `wenmai_config` | 查看或改额外原文目录。当前会话工作区始终在扫描列表里，改的是「额外」项，写入库内 `source-roots.json` | `add` 增加一条；`remove` 删一条；`set` 整表替换（逗号分隔，空字符串清空额外目录） |
 | `wenmai_graph` | 根据编译页 `[[wikilinks]]`、工作区/sourceRoots 里的 Markdown、标签和 sources 生成关联图，写出 `graph.html` | `focus`、`depth`（默认 2）；`includeTags` / `includeSources` / `includeMissing` / `includeArticles`（默认都为 true）；`open`（macOS 下用系统浏览器打开） |

@@ -6,13 +6,21 @@ import { clampLimit } from '../plugin/register.js'
 import { normalizeKind } from '../plugin/ingest-args.js'
 import type { PluginRuntime } from '../plugin/types.js'
 import { addAgentSourceRoot } from '../source-roots.js'
+import { researchVault } from '../research/index.js'
 import { initVault, status } from '../store.js'
 import { runTasks, TASK_OPS, type TaskOp } from '../tasks/index.js'
 import { DEFAULT_WRITER_DOMAIN } from '../ui/defaults.js'
 import { checkWritten } from '../written.js'
 import type { UiRequestBody } from './protocol.js'
 
-export type UiHandleRuntime = Pick<PluginRuntime, 'root' | 'pluginRoots' | 'ingestAdapters' | 'refreshOrient'>
+export type UiHandleRuntime = Pick<
+  PluginRuntime,
+  'root' | 'pluginRoots' | 'ingestAdapters' | 'research' | 'refreshOrient'
+>
+
+function withResearchFlag<T extends object>(report: T, research: boolean): T & { research: boolean } {
+  return { ...report, research }
+}
 
 function agentFromWorkspace(workspace: string | undefined): { session: { cwd: string } } | undefined {
   if (typeof workspace !== 'string' || !workspace.trim()) return undefined
@@ -72,12 +80,17 @@ export async function handleUiRequest(runtime: UiHandleRuntime, body: UiRequestB
   const agent = agentFromWorkspace(body.workspace)
   try {
     if (op === 'status') {
-      return await status(runtime.root, await effectiveRoots(runtime.root, runtime.pluginRoots, agent))
+      return withResearchFlag(
+        await status(runtime.root, await effectiveRoots(runtime.root, runtime.pluginRoots, agent)),
+        runtime.research === true,
+      )
     }
     if (op === 'written') {
       const query = typeof body.query === 'string' ? body.query : ''
       const roots = await effectiveRoots(runtime.root, runtime.pluginRoots, agent)
-      return await checkWritten(runtime.root, rootPaths(roots), query, clampLimit(undefined))
+      return await checkWritten(runtime.root, rootPaths(roots), query, clampLimit(undefined), {
+        research: runtime.research === true,
+      })
     }
     if (op === 'init') {
       const domain =
@@ -86,11 +99,17 @@ export async function handleUiRequest(runtime: UiHandleRuntime, body: UiRequestB
           : DEFAULT_WRITER_DOMAIN
       await initVault(runtime.root, domain, { pack: 'writer' })
       await runtime.refreshOrient()
-      return await status(runtime.root, await effectiveRoots(runtime.root, runtime.pluginRoots, agent))
+      return withResearchFlag(
+        await status(runtime.root, await effectiveRoots(runtime.root, runtime.pluginRoots, agent)),
+        runtime.research === true,
+      )
     }
     if (op === 'source-add') {
       await addAgentSourceRoot(runtime.root, requiredDir(body))
-      return await status(runtime.root, await effectiveRoots(runtime.root, runtime.pluginRoots, agent))
+      return withResearchFlag(
+        await status(runtime.root, await effectiveRoots(runtime.root, runtime.pluginRoots, agent)),
+        runtime.research === true,
+      )
     }
     if (op === 'ingest-preview') {
       return await ingestUi(runtime, body, { dryRun: true, adopt: true })
@@ -107,6 +126,15 @@ export async function handleUiRequest(runtime: UiHandleRuntime, body: UiRequestB
         op: opRaw as TaskOp,
         id: typeof body.id === 'string' ? body.id : undefined,
         snoozeDays: typeof body.snoozeDays === 'number' ? body.snoozeDays : undefined,
+        research: runtime.research === true,
+      })
+    }
+    if (op === 'research') {
+      const roots = await effectiveRoots(runtime.root, runtime.pluginRoots, agent)
+      return await researchVault(runtime.root, {
+        findingId: typeof body.id === 'string' ? body.id : undefined,
+        enabled: runtime.research === true,
+        sourceRoots: rootPaths(roots),
       })
     }
     throw new Error('unknown op')

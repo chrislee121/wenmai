@@ -7,6 +7,7 @@ import { builtinPack, indexHeading, inferTypeFromPath, loadVaultPack, rawDirsOf,
 import type { PageType, RawKind } from './pack/types.js'
 import { assertNoSymlinkEscape, isRawRel, posixRel, resolveUnder } from './paths.js'
 import { findRawByHash, rememberRawHash } from './raw-index.js'
+import { markFindings } from './review/state.js'
 import type { SourceRootOrigin, SourceRootRef } from './source-roots.js'
 
 export interface StatusReport {
@@ -154,8 +155,8 @@ export async function writePage(
   root: string,
   rel: string,
   content: string,
-  options: { log?: string; updateIndex?: boolean } = {},
-): Promise<{ ok: true; path: string; logged: boolean; indexed: boolean }> {
+  options: { log?: string; updateIndex?: boolean; finding?: string } = {},
+): Promise<{ ok: true; path: string; logged: boolean; indexed: boolean; findingAcked: string }> {
   if (isRawPath(rel)) {
     throw new Error('refusing to write under raw/; raw sources are immutable')
   }
@@ -176,7 +177,12 @@ export async function writePage(
     await addIndexEntry(root, rel, title, type)
     indexed = true
   }
-  return { ok: true, path: posixRel(root, abs), logged, indexed }
+  let findingAcked = ''
+  if (options.finding?.trim()) {
+    await markFindings(root, [options.finding.trim()], 'ack')
+    findingAcked = options.finding.trim()
+  }
+  return { ok: true, path: posixRel(root, abs), logged, indexed, findingAcked }
 }
 
 async function inferTypeFromPathAsync(root: string, rel: string): Promise<PageType> {

@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-08
+
+目录点了但还没写的题，能在本机旧稿里查有没有料，并在动笔前告诉你。默认关闭。
+
+### 新增
+
+- 配置 `research: true` 后，目录列出但没有编译页的缺口会变成可研究的任务
+- `wenmai_research` 在 `raw/` 与已配置目录里词法查料，只出简报，不生成正文、不写盘、不抓网页
+- 动笔前搜这个题时，即使判定为可以写，也会带上「目录已列、页还没写」
+- 中间栏开关打开时可以用「查旧稿」看简报，并把原文交给对话去读
+- 写成该页时可带上 finding，补写成功即勾掉这条任务
+
 ## [0.6.2] - 2026-09-08
 
 中间栏能建库、收旧稿、把命中交给对话去读，并一键审视今天该修什么。
@@ -143,6 +155,7 @@ DeepSeek Harness 对话框里可以直接看文脉结果，不必读一整段 JS
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 
+[0.7.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.7.0
 [0.6.2]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.2
 [0.6.1]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.1
 [0.6.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.0

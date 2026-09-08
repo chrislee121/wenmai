@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { readPageDraft } from '../ui/handoff.js'
+import { DEFAULT_WRITER_DOMAIN, tasksEmptyCopy } from '../ui/defaults.js'
 import {
   ingestCardModel,
   isToolRunning,
@@ -11,8 +13,10 @@ import {
   type TaskCardItem,
   type TasksCardModel,
   type WrittenCardModel,
+  type WrittenHitView,
 } from '../ui/models.js'
 import { wenmaiApi } from './api.js'
+import { fillOrCopyDraft } from './composer.js'
 import { Actions, Button, Card } from './chrome.js'
 
 export interface ToolViewProps {
@@ -27,6 +31,40 @@ function toneOf(verdict: WrittenCardModel['verdict']): 'new' | 'review' | 'dupli
   return 'new'
 }
 
+function HitRow(props: { hit: WrittenHitView }): React.ReactElement {
+  const { hit } = props
+  const [hint, setHint] = React.useState<string | null>(null)
+  const handoff = async (): Promise<void> => {
+    const draft = readPageDraft(hit)
+    const result = await fillOrCopyDraft(draft)
+    if (result === 'filled') setHint('已填进右侧输入框，你自己发')
+    else if (result === 'copied') setHint('复制这句话自己贴')
+    else setHint('复制这句话自己贴')
+  }
+  return React.createElement(
+    'li',
+    { className: 'wenmai-item' },
+    React.createElement('div', { className: 'wenmai-item-title' }, hit.title),
+    React.createElement('div', { className: 'wenmai-item-path' }, hit.path),
+    hit.overlappingPhrases.length > 0
+      ? React.createElement(
+          'div',
+          { className: 'wenmai-phrases' },
+          hit.overlappingPhrases.map((phrase) =>
+            React.createElement('span', { key: phrase, className: 'wenmai-phrase' }, phrase),
+          ),
+        )
+      : null,
+    hit.snippet ? React.createElement('div', { className: 'wenmai-item-snip' }, hit.snippet) : null,
+    React.createElement(
+      Actions,
+      null,
+      React.createElement(Button, { onClick: () => void handoff() }, '让对话读这一页'),
+    ),
+    hint ? React.createElement('div', { className: 'wenmai-meta' }, hint) : null,
+  )
+}
+
 export function WrittenBody(props: { model: WrittenCardModel }): React.ReactElement {
   const { model } = props
   return React.createElement(
@@ -35,21 +73,7 @@ export function WrittenBody(props: { model: WrittenCardModel }): React.ReactElem
     React.createElement('div', { className: 'wenmai-verdict' }, model.headline),
     model.reason ? React.createElement('div', { className: 'wenmai-reason' }, model.reason) : null,
     model.hits.length > 0
-      ? React.createElement(
-          'ul',
-          { className: 'wenmai-list' },
-          model.hits.map((hit) =>
-            React.createElement(
-              'li',
-              { key: hit.path, className: 'wenmai-item' },
-              React.createElement('div', { className: 'wenmai-item-title' }, hit.title),
-              React.createElement('div', { className: 'wenmai-item-path' }, hit.path),
-              hit.snippet
-                ? React.createElement('div', { className: 'wenmai-item-snip' }, hit.snippet)
-                : null,
-            ),
-          ),
-        )
+      ? React.createElement('ul', { className: 'wenmai-list' }, model.hits.map((hit) => React.createElement(HitRow, { key: hit.path, hit })))
       : null,
     model.openTasks.length > 0
       ? React.createElement(
@@ -71,9 +95,14 @@ export function WrittenCard(props: ToolViewProps): React.ReactElement {
 function IngestBody(props: {
   model: IngestCardModel
   cwd?: string
+  onDone?: (model: IngestCardModel) => void
+  embedded?: boolean
 }): React.ReactElement {
   const [busy, setBusy] = React.useState(false)
   const [done, setDone] = React.useState<IngestCardModel | null>(null)
+  React.useEffect(() => {
+    setDone(null)
+  }, [props.model])
   const model = done ?? props.model
   const confirm = async (): Promise<void> => {
     if (!model.canConfirm || busy) return
@@ -85,7 +114,9 @@ function IngestBody(props: {
         kind: model.kind,
         workspace: props.cwd,
       })
-      setDone(ingestCardModel(result, false))
+      const next = ingestCardModel(result, false)
+      setDone(next)
+      props.onDone?.(next)
     } finally {
       setBusy(false)
     }
@@ -95,19 +126,17 @@ function IngestBody(props: {
     : model.dryRun
       ? `将收录 ${model.planned} 篇`
       : `已写入 ${model.ingested} 篇`
-  return React.createElement(
-    Card,
-    { kicker: '文脉 · 收录' },
-    React.createElement('div', { className: 'wenmai-verdict' }, headline),
+  const body = [
+    React.createElement('div', { key: 'headline', className: 'wenmai-verdict' }, headline),
     React.createElement(
       'div',
-      { className: 'wenmai-meta' },
+      { key: 'meta', className: 'wenmai-meta' },
       model.dir || model.error || '没有可收录的稿',
     ),
     model.files.length > 0
       ? React.createElement(
           'ul',
-          { className: 'wenmai-list' },
+          { key: 'files', className: 'wenmai-list' },
           model.files.map((file) =>
             React.createElement(
               'li',
@@ -121,7 +150,7 @@ function IngestBody(props: {
     model.canConfirm
       ? React.createElement(
           Actions,
-          null,
+          { key: 'confirm' },
           React.createElement(
             Button,
             { primary: true, disabled: busy, onClick: () => void confirm() },
@@ -130,9 +159,13 @@ function IngestBody(props: {
         )
       : null,
     !model.dryRun && model.ingested > 0
-      ? React.createElement('div', { className: 'wenmai-meta' }, '只写进了 raw/，编译页请另外交代。')
+      ? React.createElement('div', { key: 'hint', className: 'wenmai-meta' }, '只写进了 raw/，编译页请另外交代。')
       : null,
-  )
+  ]
+  if (props.embedded) {
+    return React.createElement('div', { className: 'wenmai-ingest-result' }, body)
+  }
+  return React.createElement(Card, { kicker: '文脉 · 收录' }, body)
 }
 
 export function IngestCard(props: ToolViewProps): React.ReactElement {
@@ -141,23 +174,107 @@ export function IngestCard(props: ToolViewProps): React.ReactElement {
   return React.createElement(IngestBody, { model, cwd: props.cwd })
 }
 
-export function StatusBody(props: { model: StatusCardModel }): React.ReactElement {
+export function IngestPanel(props: { cwd?: string; onChanged?: () => void }): React.ReactElement {
+  const [dir, setDir] = React.useState('')
+  const [busy, setBusy] = React.useState(false)
+  const [model, setModel] = React.useState<IngestCardModel | null>(null)
+  const preview = async (target: string): Promise<void> => {
+    const trimmed = target.trim()
+    if (!trimmed || busy) return
+    setBusy(true)
+    try {
+      const result = await wenmaiApi({
+        op: 'ingest-preview',
+        dir: trimmed,
+        workspace: props.cwd,
+      })
+      setModel(ingestCardModel(result, false))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return React.createElement(
+    Card,
+    { kicker: '文脉 · 收录' },
+    React.createElement('div', { className: 'wenmai-verdict' }, '把写完的稿收进来'),
+    React.createElement(
+      'div',
+      { className: 'wenmai-reason' },
+      '只预览 Markdown，确认后写入 raw/。不改编译页，也不扫家目录。',
+    ),
+    React.createElement(
+      Actions,
+      null,
+      React.createElement(
+        Button,
+        {
+          primary: true,
+          disabled: busy || !props.cwd,
+          onClick: () => void preview(props.cwd ?? ''),
+        },
+        busy ? '正在预览…' : '收当前工作区',
+      ),
+    ),
+    !props.cwd
+      ? React.createElement('div', { className: 'wenmai-meta' }, '当前没有工作区路径，请在下面贴一个本机目录。')
+      : null,
+    React.createElement(
+      'form',
+      {
+        className: 'wenmai-inline-form',
+        onSubmit: (event: React.FormEvent) => {
+          event.preventDefault()
+          event.stopPropagation()
+          void preview(dir)
+        },
+      },
+      React.createElement('input', {
+        className: 'wenmai-field',
+        value: dir,
+        placeholder: '或贴一个本机目录路径',
+        onChange: (event: React.ChangeEvent<HTMLInputElement>) => setDir(event.target.value),
+      }),
+      React.createElement(
+        Button,
+        { type: 'submit', disabled: busy || !dir.trim() },
+        busy ? '正在预览…' : '预览',
+      ),
+    ),
+    model
+      ? React.createElement(IngestBody, {
+          model,
+          cwd: props.cwd,
+          embedded: true,
+          onDone: (next) => {
+            setModel(next)
+            if (!next.dryRun && !next.error) props.onChanged?.()
+          },
+        })
+      : null,
+  )
+}
+
+function statusCounts(model: StatusCardModel): string {
+  if (model.error) return model.error
+  if (model.running) return '正在读取…'
+  const counts = `编译页 ${model.pageCount} · 原文 ${model.rawCount}`
+  return model.root ? `${counts} · ${model.root}` : counts
+}
+
+export function StatusBody(props: { model: StatusCardModel; compact?: boolean }): React.ReactElement {
   const { model } = props
+  if (props.compact) {
+    return React.createElement('div', { className: 'wenmai-status-foot' }, statusCounts(model))
+  }
   return React.createElement(
     Card,
     { kicker: '文脉 · 状态' },
     React.createElement(
       'div',
       { className: 'wenmai-verdict' },
-      model.error ? '读不到库' : model.initialized ? '库已就绪' : '还没初始化',
+      model.error ? '读不到库' : model.running ? '正在读取…' : model.initialized ? '库已就绪' : '库还没建',
     ),
-    React.createElement(
-      'div',
-      { className: 'wenmai-meta' },
-      model.error
-        ? model.error
-        : `编译页 ${model.pageCount} · 原文 ${model.rawCount}${model.root ? ` · ${model.root}` : ''}`,
-    ),
+    React.createElement('div', { className: 'wenmai-meta' }, statusCounts(model)),
     model.sourceRoots.length > 0
       ? React.createElement(
           'ul',
@@ -179,18 +296,76 @@ export function StatusBody(props: { model: StatusCardModel }): React.ReactElemen
   )
 }
 
+export function InitPanel(props: {
+  cwd?: string
+  onReady: (status: StatusCardModel) => void
+}): React.ReactElement {
+  const [domain, setDomain] = React.useState(DEFAULT_WRITER_DOMAIN)
+  const [busy, setBusy] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const create = async (): Promise<void> => {
+    const trimmed = domain.trim() || DEFAULT_WRITER_DOMAIN
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await wenmaiApi({
+        op: 'init',
+        domain: trimmed,
+        workspace: props.cwd,
+      })
+      const next = statusCardModel(result, false)
+      if (next.error) {
+        setError(next.error)
+        return
+      }
+      props.onReady(next)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return React.createElement(
+    Card,
+    { kicker: '文脉 · 开始' },
+    React.createElement('div', { className: 'wenmai-verdict' }, '先建这个库'),
+    React.createElement(
+      'div',
+      { className: 'wenmai-reason' },
+      '建库之后才能查撞稿、收旧稿、审视。默认用写作包，不改你现在的稿。',
+    ),
+    React.createElement('input', {
+      className: 'wenmai-field',
+      value: domain,
+      'aria-label': '这个库覆盖的领域',
+      onChange: (event: React.ChangeEvent<HTMLInputElement>) => setDomain(event.target.value),
+    }),
+    error ? React.createElement('div', { className: 'wenmai-reason' }, error) : null,
+    React.createElement(
+      Actions,
+      null,
+      React.createElement(
+        Button,
+        { primary: true, disabled: busy, onClick: () => void create() },
+        busy ? '正在建…' : '建这个库',
+      ),
+    ),
+  )
+}
+
 export function StatusCard(props: ToolViewProps): React.ReactElement {
   const running = isToolRunning(props.block)
   const model = statusCardModel(parseToolPayload(props.block), running)
   return React.createElement(StatusBody, { model })
 }
 
-function TasksBody(props: { model: TasksCardModel; cwd?: string }): React.ReactElement {
+function TasksBody(props: { model: TasksCardModel; cwd?: string; rawCount?: number }): React.ReactElement {
   const [model, setModel] = React.useState(props.model)
   const [busyId, setBusyId] = React.useState<string | null>(null)
+  const [reviewing, setReviewing] = React.useState(false)
   React.useEffect(() => {
     setModel(props.model)
   }, [props.model])
+  const locked = busyId !== null || reviewing
   const act = async (taskOp: 'start' | 'snooze' | 'wontfix', id: string): Promise<void> => {
     setBusyId(id)
     try {
@@ -204,6 +379,16 @@ function TasksBody(props: { model: TasksCardModel; cwd?: string }): React.ReactE
       setModel(tasksCardModel(result, false))
     } finally {
       setBusyId(null)
+    }
+  }
+  const review = async (): Promise<void> => {
+    if (locked) return
+    setReviewing(true)
+    try {
+      const result = await wenmaiApi({ op: 'tasks', taskOp: 'list', workspace: props.cwd })
+      setModel(tasksCardModel(result, false))
+    } finally {
+      setReviewing(false)
     }
   }
   const row = (task: TaskCardItem): React.ReactElement =>
@@ -226,43 +411,55 @@ function TasksBody(props: { model: TasksCardModel; cwd?: string }): React.ReactE
           Button,
           {
             primary: true,
-            disabled: busyId !== null,
+            disabled: locked,
             onClick: () => void act('start', task.id),
           },
           '开始修',
         ),
         React.createElement(
           Button,
-          { disabled: busyId !== null, onClick: () => void act('snooze', task.id) },
+          { disabled: locked, onClick: () => void act('snooze', task.id) },
           '稍后',
         ),
         React.createElement(
           Button,
-          { disabled: busyId !== null, onClick: () => void act('wontfix', task.id) },
+          { disabled: locked, onClick: () => void act('wontfix', task.id) },
           '不算问题',
         ),
       ),
     )
+  const headline = model.error
+    ? '读不到任务'
+    : model.running || reviewing
+      ? '正在审视…'
+      : model.taskCount === 0
+        ? '没有待修项'
+        : `${model.taskCount} 条待处理`
   return React.createElement(
     Card,
     { kicker: '文脉 · 今天该修什么' },
+    React.createElement('div', { className: 'wenmai-verdict' }, headline),
     React.createElement(
-      'div',
-      { className: 'wenmai-verdict' },
-      model.error ? '读不到任务' : model.taskCount === 0 ? '没有待修项' : `${model.taskCount} 条待处理`,
+      Actions,
+      null,
+      React.createElement(
+        Button,
+        { primary: true, disabled: locked || model.running, onClick: () => void review() },
+        reviewing ? '正在审视…' : '审视知识库',
+      ),
     ),
     model.error ? React.createElement('div', { className: 'wenmai-reason' }, model.error) : null,
     model.tasks.length > 0
       ? React.createElement('ul', { className: 'wenmai-list' }, model.tasks.map(row))
-      : React.createElement(
-          'div',
-          { className: 'wenmai-empty' },
-          '没有 finding 就没有任务。修某一条仍走重构，默认先预览。',
-        ),
+      : React.createElement('div', { className: 'wenmai-empty' }, tasksEmptyCopy(props.rawCount)),
   )
 }
 
-export function TasksPanel(props: { model: TasksCardModel; cwd?: string }): React.ReactElement {
+export function TasksPanel(props: {
+  model: TasksCardModel
+  cwd?: string
+  rawCount?: number
+}): React.ReactElement {
   return React.createElement(TasksBody, props)
 }
 

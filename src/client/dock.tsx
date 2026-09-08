@@ -48,7 +48,6 @@ function SplitHandle(props: {
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
       const pane = event.currentTarget.parentElement
       if (pane === null) return
-      event.preventDefault()
       event.currentTarget.setPointerCapture(event.pointerId)
       origin.current = event.clientX
       base.current = pane.getBoundingClientRect().width

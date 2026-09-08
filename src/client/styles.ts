@@ -68,6 +68,19 @@ export const WENMAI_CSS = `
   line-height: 1.45;
   color: var(--dsw-alias-fg-muted, color-mix(in srgb, currentColor 58%, transparent));
 }
+.wenmai-phrases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.wenmai-phrase {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--wenmai-ink) 35%, transparent);
+  color: var(--dsw-alias-fg-secondary, color-mix(in srgb, currentColor 78%, transparent));
+}
 .wenmai-actions {
   display: flex;
   flex-wrap: wrap;

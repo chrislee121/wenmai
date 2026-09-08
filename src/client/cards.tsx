@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { readPageDraft } from '../ui/handoff.js'
 import { DEFAULT_WRITER_DOMAIN } from '../ui/defaults.js'
 import {
   ingestCardModel,
@@ -12,8 +13,10 @@ import {
   type TaskCardItem,
   type TasksCardModel,
   type WrittenCardModel,
+  type WrittenHitView,
 } from '../ui/models.js'
 import { wenmaiApi } from './api.js'
+import { fillOrCopyDraft } from './composer.js'
 import { Actions, Button, Card } from './chrome.js'
 
 export interface ToolViewProps {
@@ -28,6 +31,40 @@ function toneOf(verdict: WrittenCardModel['verdict']): 'new' | 'review' | 'dupli
   return 'new'
 }
 
+function HitRow(props: { hit: WrittenHitView }): React.ReactElement {
+  const { hit } = props
+  const [hint, setHint] = React.useState<string | null>(null)
+  const handoff = async (): Promise<void> => {
+    const draft = readPageDraft(hit)
+    const result = await fillOrCopyDraft(draft)
+    if (result === 'filled') setHint('已填进右侧输入框，你自己发')
+    else if (result === 'copied') setHint('复制这句话自己贴')
+    else setHint('复制这句话自己贴')
+  }
+  return React.createElement(
+    'li',
+    { className: 'wenmai-item' },
+    React.createElement('div', { className: 'wenmai-item-title' }, hit.title),
+    React.createElement('div', { className: 'wenmai-item-path' }, hit.path),
+    hit.overlappingPhrases.length > 0
+      ? React.createElement(
+          'div',
+          { className: 'wenmai-phrases' },
+          hit.overlappingPhrases.map((phrase) =>
+            React.createElement('span', { key: phrase, className: 'wenmai-phrase' }, phrase),
+          ),
+        )
+      : null,
+    hit.snippet ? React.createElement('div', { className: 'wenmai-item-snip' }, hit.snippet) : null,
+    React.createElement(
+      Actions,
+      null,
+      React.createElement(Button, { onClick: () => void handoff() }, '让对话读这一页'),
+    ),
+    hint ? React.createElement('div', { className: 'wenmai-meta' }, hint) : null,
+  )
+}
+
 export function WrittenBody(props: { model: WrittenCardModel }): React.ReactElement {
   const { model } = props
   return React.createElement(
@@ -36,21 +73,7 @@ export function WrittenBody(props: { model: WrittenCardModel }): React.ReactElem
     React.createElement('div', { className: 'wenmai-verdict' }, model.headline),
     model.reason ? React.createElement('div', { className: 'wenmai-reason' }, model.reason) : null,
     model.hits.length > 0
-      ? React.createElement(
-          'ul',
-          { className: 'wenmai-list' },
-          model.hits.map((hit) =>
-            React.createElement(
-              'li',
-              { key: hit.path, className: 'wenmai-item' },
-              React.createElement('div', { className: 'wenmai-item-title' }, hit.title),
-              React.createElement('div', { className: 'wenmai-item-path' }, hit.path),
-              hit.snippet
-                ? React.createElement('div', { className: 'wenmai-item-snip' }, hit.snippet)
-                : null,
-            ),
-          ),
-        )
+      ? React.createElement('ul', { className: 'wenmai-list' }, model.hits.map((hit) => React.createElement(HitRow, { key: hit.path, hit })))
       : null,
     model.openTasks.length > 0
       ? React.createElement(

@@ -36,6 +36,7 @@ test('written card model keeps hits and overlapping tasks', () => {
   })
   assert.equal(model.headline, '已经写过')
   assert.equal(model.hits[0]?.title, 'DeepSeek Harness')
+  assert.deepEqual(model.hits[0]?.overlappingPhrases, ['Web UI'])
   assert.equal(model.openTasks[0]?.why, '两页重复')
 })
 

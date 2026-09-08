@@ -30,6 +30,27 @@ export const WENMAI_CSS = `
   text-transform: uppercase;
   color: var(--dsw-alias-fg-muted, color-mix(in srgb, currentColor 55%, transparent));
 }
+.wenmai-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--dsw-alias-fg-muted, color-mix(in srgb, currentColor 55%, transparent));
+}
+.wenmai-mark {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  display: block;
+}
+.wenmai-brand-name {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+.wenmai-brand-en {
+  letter-spacing: 0.14em;
+}
 .wenmai-verdict {
   font-size: 22px;
   line-height: 1.2;
@@ -67,6 +88,19 @@ export const WENMAI_CSS = `
   font-size: 12px;
   line-height: 1.45;
   color: var(--dsw-alias-fg-muted, color-mix(in srgb, currentColor 58%, transparent));
+}
+.wenmai-phrases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.wenmai-phrase {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--wenmai-ink) 35%, transparent);
+  color: var(--dsw-alias-fg-secondary, color-mix(in srgb, currentColor 78%, transparent));
 }
 .wenmai-actions {
   display: flex;
@@ -144,12 +178,24 @@ export const WENMAI_CSS = `
 .wenmai-split {
   position: absolute;
   top: 0;
-  right: -3px;
-  width: 8px;
+  right: -5px;
+  width: 10px;
   height: 100%;
   cursor: col-resize;
-  z-index: 3;
+  z-index: 1;
   touch-action: none;
+}
+.wenmai-search,
+.wenmai-inline-form,
+.wenmai-tab-head {
+  position: relative;
+  z-index: 2;
+}
+.wenmai-search .wenmai-btn,
+.wenmai-search input,
+.wenmai-inline-form .wenmai-btn,
+.wenmai-inline-form input {
+  pointer-events: auto;
 }
 .wenmai-tab {
   flex: 1;
@@ -176,11 +222,13 @@ export const WENMAI_CSS = `
   font-weight: 650;
   letter-spacing: -0.02em;
 }
-.wenmai-search {
+.wenmai-search,
+.wenmai-inline-form {
   display: flex;
   gap: 8px;
 }
-.wenmai-search input {
+.wenmai-search input,
+.wenmai-field {
   flex: 1;
   font: inherit;
   font-size: 14px;
@@ -190,9 +238,26 @@ export const WENMAI_CSS = `
   background: transparent;
   color: inherit;
 }
+.wenmai-field {
+  width: 100%;
+  box-sizing: border-box;
+}
+.wenmai-search input:disabled {
+  opacity: 0.55;
+}
 .wenmai-empty {
   font-size: 13px;
   color: var(--dsw-alias-fg-muted, color-mix(in srgb, currentColor 58%, transparent));
+}
+.wenmai-status-foot {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dsw-alias-fg-muted, color-mix(in srgb, currentColor 58%, transparent));
+  padding-top: 8px;
+}
+.wenmai-ingest-result {
+  display: grid;
+  gap: 10px;
 }
 `
 

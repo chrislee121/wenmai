@@ -1,7 +1,7 @@
 const SPLIT_ATTR = 'data-wenmai-split'
 const HOST_ATTR = 'data-wenmai-pane-host'
 
-function findConversationRoot(): HTMLElement | null {
+export function findConversationRoot(): HTMLElement | null {
   const found = document.querySelector('[style*="--dsh-conversation-column-width"]')
   return found instanceof HTMLElement ? found : null
 }

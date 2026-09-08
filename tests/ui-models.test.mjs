@@ -36,6 +36,7 @@ test('written card model keeps hits and overlapping tasks', () => {
   })
   assert.equal(model.headline, '已经写过')
   assert.equal(model.hits[0]?.title, 'DeepSeek Harness')
+  assert.deepEqual(model.hits[0]?.overlappingPhrases, ['Web UI'])
   assert.equal(model.openTasks[0]?.why, '两页重复')
 })
 
@@ -77,6 +78,8 @@ test('status and tasks models tolerate errors', () => {
   const status = statusCardModel({ ok: false, error: 'vault missing' })
   assert.equal(status.initialized, false)
   assert.match(status.error ?? '', /vault missing/)
+  const loading = statusCardModel(null, true)
+  assert.equal(loading.running, true)
   const tasks = tasksCardModel({
     ok: true,
     op: 'list',

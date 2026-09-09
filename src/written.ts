@@ -81,6 +81,7 @@ export async function checkWritten(
   sourceRoots: string[],
   query: string,
   limit = 20,
+  options: { research?: boolean } = {},
 ): Promise<WrittenReport> {
   const trimmed = query.trim()
   const empty: WrittenReport = {
@@ -124,8 +125,18 @@ export async function checkWritten(
 
   hits.sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
   const limited = hits.slice(0, limit)
-  const { verdict, reason } = verdictOf(limited)
-  const openTasks = toWrittenOpenTaskList(await overlappingOpenTasks(root, limited.map((hit) => hit.path)))
+  const { verdict, reason: baseReason } = verdictOf(limited)
+  const openTasks = toWrittenOpenTaskList(
+    await overlappingOpenTasks(root, limited.map((hit) => hit.path), {
+      query: trimmed,
+      research: options.research === true,
+    }),
+  )
+  const gapTasks = openTasks.filter((task) => task.relatedPages[0] === 'index.md')
+  const reason =
+    verdict === 'NEW' && gapTasks.length > 0
+      ? '目录已点名但还没写。词法范围内没有现成编译页。'
+      : baseReason
   const report: WrittenReport = {
     ok: true,
     query: trimmed,

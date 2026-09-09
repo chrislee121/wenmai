@@ -1,3 +1,5 @@
+import { missingSlug } from '../research/eligible.js'
+import { queryOverlapsGap } from '../research/match.js'
 import { reviewVault } from '../review/index.js'
 import { markFindings, readReviewState, type ReviewStatus, type TaskPriority } from '../review/state.js'
 import { findingToTask, sortTasks } from './project.js'
@@ -5,7 +7,7 @@ import type { KnowledgeTask, TaskOp, TaskOptions, TaskReport } from './types.js'
 
 export type { KnowledgeTask, SuggestedOp, TaskOp, TaskOptions, TaskReport, TaskStatus } from './types.js'
 export { TASK_OPS } from './types.js'
-export { derivePriority, findingToTask, suggestedOp } from './project.js'
+export { derivePriority, findingToTask, isResearchEligible, suggestedOp, suggestedOpForFinding } from './project.js'
 
 const MUTATE_OPS = new Set<TaskOp>(['start', 'done', 'snooze', 'wontfix'])
 
@@ -16,11 +18,13 @@ function asPriority(value: string | undefined): TaskPriority | undefined {
 
 async function projectTasks(
   root: string,
-  options: { includeDismissed?: boolean; priority?: TaskPriority },
+  options: { includeDismissed?: boolean; priority?: TaskPriority; research?: boolean },
 ): Promise<KnowledgeTask[]> {
   const report = await reviewVault(root, { includeDismissed: options.includeDismissed === true })
   const state = await readReviewState(root)
-  let tasks = report.findings.map((item) => findingToTask(item, state.findings[item.id]))
+  let tasks = report.findings.map((item) =>
+    findingToTask(item, state.findings[item.id], { research: options.research === true }),
+  )
   if (options.priority) {
     tasks = tasks.filter((item) => item.priority === options.priority)
   }
@@ -37,7 +41,14 @@ export async function runTasks(root: string, options: TaskOptions = {}): Promise
   const op: TaskOp = options.op ?? 'list'
   const priority = asPriority(options.priority)
   if (op === 'list') {
-    return reportOf(op, await projectTasks(root, { includeDismissed: options.includeDismissed, priority }))
+    return reportOf(
+      op,
+      await projectTasks(root, {
+        includeDismissed: options.includeDismissed,
+        priority,
+        research: options.research,
+      }),
+    )
   }
   if (!MUTATE_OPS.has(op)) {
     throw new Error(`unknown tasks op: ${op}`)
@@ -56,19 +67,27 @@ export async function runTasks(root: string, options: TaskOptions = {}): Promise
     await markFindings(root, [id], status, options.snoozeDays ?? 30)
   }
 
-  const tasks = await projectTasks(root, { includeDismissed: options.includeDismissed })
+  const tasks = await projectTasks(root, {
+    includeDismissed: options.includeDismissed,
+    research: options.research,
+  })
   return reportOf(op, tasks, id)
 }
 
-export async function overlappingOpenTasks(root: string, hitPaths: string[]): Promise<KnowledgeTask[]> {
+export async function overlappingOpenTasks(
+  root: string,
+  hitPaths: string[],
+  options?: { query?: string; research?: boolean },
+): Promise<KnowledgeTask[]> {
+  const listed = await runTasks(root, { op: 'list', research: options?.research })
   const hits = new Set(hitPaths.filter(Boolean))
-  if (hits.size === 0) return []
-  const listed = await runTasks(root, { op: 'list' })
-  return listed.tasks.filter(
-    (task) =>
-      (task.status === 'open' || task.status === 'in_progress') &&
-      task.relatedPages.some((page) => hits.has(page)),
-  )
+  const query = options?.query?.trim() ?? ''
+  return listed.tasks.filter((task) => {
+    if (task.status !== 'open' && task.status !== 'in_progress') return false
+    if (task.relatedPages.some((page) => hits.has(page))) return true
+    const slug = missingSlug({ kind: task.kind, paths: task.relatedPages })
+    return Boolean(slug && query && queryOverlapsGap(query, slug))
+  })
 }
 
 export function toWrittenOpenTask(task: KnowledgeTask): {

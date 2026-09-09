@@ -21,6 +21,7 @@ function runtime(root, pluginRoots = []) {
     root,
     pluginRoots,
     ingestAdapters: false,
+    research: false,
     refreshOrient: async () => {},
   }
 }
@@ -113,6 +114,23 @@ test('ui handle init creates SCHEMA on an empty vault', async () => {
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
+})
+
+test('ui handle research is off by default and can list a catalog gap', async () => {
+  await withVault(async (root) => {
+    const abs = path.join(root, 'index.md')
+    const index = await readFile(abs, 'utf8')
+    await writeFile(abs, index.replace('## Concepts', '## Concepts\n\n- [[本地-web-ui]] — 本地 Web UI\n'), 'utf8')
+    const off = await handleUiRequest(runtime(root), { op: 'research' })
+    assert.equal(off.ok, false)
+    assert.match(off.error, /research is disabled/)
+    const status = await handleUiRequest(runtime(root), { op: 'status' })
+    assert.equal(status.research, false)
+    const on = await handleUiRequest({ ...runtime(root), research: true }, { op: 'research' })
+    assert.equal(on.ok, true)
+    assert.equal(on.briefs[0]?.slug, '本地-web-ui')
+    assert.equal(on.briefs[0]?.proposedPath, 'concepts/本地-web-ui.md')
+  })
 })
 
 test('ui handle rejects unknown ops and home ingest', async () => {

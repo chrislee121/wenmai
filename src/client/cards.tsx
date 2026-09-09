@@ -5,10 +5,12 @@ import {
   ingestCardModel,
   isToolRunning,
   parseToolPayload,
+  researchCardModel,
   statusCardModel,
   tasksCardModel,
   writtenCardModel,
   type IngestCardModel,
+  type ResearchCardModel,
   type StatusCardModel,
   type TaskCardItem,
   type TasksCardModel,
@@ -358,10 +360,17 @@ export function StatusCard(props: ToolViewProps): React.ReactElement {
   return React.createElement(StatusBody, { model })
 }
 
-function TasksBody(props: { model: TasksCardModel; cwd?: string; rawCount?: number }): React.ReactElement {
+function TasksBody(props: {
+  model: TasksCardModel
+  cwd?: string
+  rawCount?: number
+  research?: boolean
+}): React.ReactElement {
   const [model, setModel] = React.useState(props.model)
   const [busyId, setBusyId] = React.useState<string | null>(null)
   const [reviewing, setReviewing] = React.useState(false)
+  const [briefs, setBriefs] = React.useState<Record<string, ResearchCardModel>>({})
+  const [hintById, setHintById] = React.useState<Record<string, string>>({})
   React.useEffect(() => {
     setModel(props.model)
   }, [props.model])
@@ -391,6 +400,56 @@ function TasksBody(props: { model: TasksCardModel; cwd?: string; rawCount?: numb
       setReviewing(false)
     }
   }
+  const lookup = async (id: string): Promise<void> => {
+    if (locked) return
+    setBusyId(id)
+    try {
+      const result = await wenmaiApi({ op: 'research', id, workspace: props.cwd })
+      setBriefs((prev) => ({ ...prev, [id]: researchCardModel(result, false) }))
+    } finally {
+      setBusyId(null)
+    }
+  }
+  const handoff = async (id: string, hit: { title: string; path: string }): Promise<void> => {
+    const kind = hit.path.startsWith('raw/') ? 'page' : 'source'
+    const result = await fillOrCopyDraft(readPageDraft({ kind, title: hit.title, path: hit.path }))
+    const message = result === 'filled' ? '已填进右侧输入框，你自己发' : '复制这句话自己贴'
+    setHintById((prev) => ({ ...prev, [id]: message }))
+  }
+  const briefBlock = (task: TaskCardItem): React.ReactElement | null => {
+    const brief = briefs[task.id]
+    if (!brief) return null
+    if (brief.error) return React.createElement('div', { className: 'wenmai-reason' }, brief.error)
+    return React.createElement(
+      'div',
+      { className: 'wenmai-research' },
+      brief.proposedPath
+        ? React.createElement('div', { className: 'wenmai-item-path' }, `建议写到 ${brief.proposedPath}`)
+        : null,
+      brief.note ? React.createElement('div', { className: 'wenmai-reason' }, brief.note) : null,
+      brief.evidence.length > 0
+        ? React.createElement(
+            'ul',
+            { className: 'wenmai-list' },
+            brief.evidence.map((hit) =>
+              React.createElement(
+                'li',
+                { key: hit.path, className: 'wenmai-item' },
+                React.createElement('div', { className: 'wenmai-item-title' }, hit.title),
+                React.createElement('div', { className: 'wenmai-item-path' }, hit.path),
+                hit.snippet ? React.createElement('div', { className: 'wenmai-item-snip' }, hit.snippet) : null,
+                React.createElement(
+                  Actions,
+                  null,
+                  React.createElement(Button, { onClick: () => void handoff(task.id, hit) }, '让对话读这一页'),
+                ),
+              ),
+            ),
+          )
+        : null,
+      hintById[task.id] ? React.createElement('div', { className: 'wenmai-meta' }, hintById[task.id]) : null,
+    )
+  }
   const row = (task: TaskCardItem): React.ReactElement =>
     React.createElement(
       'li',
@@ -407,10 +466,17 @@ function TasksBody(props: { model: TasksCardModel; cwd?: string; rawCount?: numb
       React.createElement(
         Actions,
         null,
+        props.research && task.suggestedOp === 'research'
+          ? React.createElement(
+              Button,
+              { primary: true, disabled: locked, onClick: () => void lookup(task.id) },
+              busyId === task.id ? '在查…' : '查旧稿',
+            )
+          : null,
         React.createElement(
           Button,
           {
-            primary: true,
+            primary: !(props.research && task.suggestedOp === 'research'),
             disabled: locked,
             onClick: () => void act('start', task.id),
           },
@@ -427,6 +493,7 @@ function TasksBody(props: { model: TasksCardModel; cwd?: string; rawCount?: numb
           '不算问题',
         ),
       ),
+      briefBlock(task),
     )
   const headline = model.error
     ? '读不到任务'
@@ -459,6 +526,7 @@ export function TasksPanel(props: {
   model: TasksCardModel
   cwd?: string
   rawCount?: number
+  research?: boolean
 }): React.ReactElement {
   return React.createElement(TasksBody, props)
 }

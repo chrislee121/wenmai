@@ -139,7 +139,7 @@ export function WenmaiTab(props: { cwd?: string; onCollapse?: () => void }): Rea
       ? React.createElement(InitPanel, { cwd: props.cwd, onReady })
       : null,
     ready ? React.createElement(IngestPanel, { cwd: props.cwd, onChanged: () => void refreshStatus() }) : null,
-    ready ? React.createElement(TasksPanel, { model: tasks, cwd: props.cwd, rawCount: status.rawCount }) : null,
+    ready ? React.createElement(TasksPanel, { model: tasks, cwd: props.cwd, rawCount: status.rawCount, research: status.research }) : null,
     React.createElement(StatusBody, { model: status, compact: true }),
   )
 }

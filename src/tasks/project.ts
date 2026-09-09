@@ -1,6 +1,9 @@
+import { isResearchEligible } from '../research/eligible.js'
 import type { Finding, FindingKind } from '../review/findings.js'
 import type { ReviewStateEntry, TaskPriority } from '../review/state.js'
 import { PRIORITY_RANK, type KnowledgeTask, type SuggestedOp, type TaskStatus } from './types.js'
+
+export { isResearchEligible }
 
 export function suggestedOp(kind: FindingKind): SuggestedOp | undefined {
   switch (kind) {
@@ -20,6 +23,14 @@ export function suggestedOp(kind: FindingKind): SuggestedOp | undefined {
   }
 }
 
+export function suggestedOpForFinding(
+  finding: Pick<Finding, 'kind' | 'paths'>,
+  options?: { research?: boolean },
+): SuggestedOp | undefined {
+  if (options?.research === true && isResearchEligible(finding)) return 'research'
+  return suggestedOp(finding.kind)
+}
+
 export function derivePriority(finding: Pick<Finding, 'kind' | 'severity'>, pinned?: TaskPriority): TaskPriority {
   if (pinned) return pinned
   if (finding.severity === 'error') return 'high'
@@ -36,8 +47,12 @@ export function taskStatus(entry: ReviewStateEntry | undefined): TaskStatus {
   return 'wontfix'
 }
 
-export function findingToTask(finding: Finding, entry?: ReviewStateEntry): KnowledgeTask {
-  const op = suggestedOp(finding.kind)
+export function findingToTask(
+  finding: Finding,
+  entry?: ReviewStateEntry,
+  options?: { research?: boolean },
+): KnowledgeTask {
+  const op = suggestedOpForFinding(finding, options)
   const task: KnowledgeTask = {
     id: finding.id,
     why: finding.reason,

@@ -4,6 +4,7 @@ import { isIPv4Loopback, isLoopbackAddress, isLoopbackHostname } from '../dist/h
 import {
   ingestCardModel,
   parseToolPayload,
+  researchCardModel,
   statusCardModel,
   tasksCardModel,
   writtenCardModel,
@@ -87,6 +88,23 @@ test('status and tasks models tolerate errors', () => {
     tasks: [{ id: '1', why: '合并重复页', relatedPages: ['a.md'], expectedResult: '剩一页', priority: 'high', status: 'open', suggestedOp: 'merge' }],
   })
   assert.equal(tasks.tasks[0]?.suggestedOp, 'merge')
+  const research = researchCardModel({
+    ok: true,
+    briefCount: 1,
+    briefs: [
+      {
+        id: 'abc',
+        slug: 'gap',
+        proposedPath: 'concepts/gap.md',
+        status: 'ready',
+        note: '只列出本机已有材料',
+        evidence: [{ path: 'raw/workspace/a.md', title: '旧稿', snippet: '重叠' }],
+        proposedSources: ['raw/workspace/a.md'],
+      },
+    ],
+  })
+  assert.equal(research.status, 'ready')
+  assert.equal(research.proposedPath, 'concepts/gap.md')
 })
 
 test('parseToolPayload reads OBJECT_OUTPUT JSON text blocks', () => {

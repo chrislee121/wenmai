@@ -10,6 +10,7 @@ import {
   sessionWorkspaceCwd,
   writeAgentSourceRoots,
 } from '../source-roots.js'
+import { researchVault } from '../research/index.js'
 import { initVault, readPage, status, writePage } from '../store.js'
 import { runTasks, TASK_OPS, type TaskOp } from '../tasks/index.js'
 import { checkWritten } from '../written.js'
@@ -26,7 +27,7 @@ function openLocalFile(file: string): void {
 }
 
 export function registerWenmaiTools(runtime: PluginRuntime): void {
-  const { ctx, root, pluginRoots, refreshOrient, ingestAdapters } = runtime
+  const { ctx, root, pluginRoots, refreshOrient, ingestAdapters, research } = runtime
 
   registerTool(ctx, {
     name: 'wenmai_status',
@@ -140,6 +141,7 @@ export function registerWenmaiTools(runtime: PluginRuntime): void {
           rootPaths(roots),
           String(args.query ?? ''),
           clampLimit(typeof args.limit === 'number' ? args.limit : undefined),
+          { research },
         )
       } catch (error) {
         return fail(error)
@@ -191,6 +193,7 @@ export function registerWenmaiTools(runtime: PluginRuntime): void {
       content: { type: 'string', required: true, description: 'Full markdown including YAML frontmatter' },
       log: { type: 'string', description: 'Optional log.md entry, e.g. "write | foo"' },
       updateIndex: { type: 'boolean', description: 'If true, add [[slug]] to index.md' },
+      finding: { type: 'string', description: 'Optional review finding id to ack after a successful write' },
     },
     async execute(args, exec) {
       throwIfAborted(exec.signal)
@@ -198,6 +201,7 @@ export function registerWenmaiTools(runtime: PluginRuntime): void {
         const result = await writePage(root, String(args.path ?? ''), String(args.content ?? ''), {
           log: typeof args.log === 'string' ? args.log : undefined,
           updateIndex: args.updateIndex === true,
+          finding: typeof args.finding === 'string' ? args.finding : undefined,
         })
         await refreshOrient()
         return result
@@ -276,6 +280,29 @@ export function registerWenmaiTools(runtime: PluginRuntime): void {
           priority: typeof args.priority === 'string' ? args.priority : undefined,
           snoozeDays: typeof args.snoozeDays === 'number' ? args.snoozeDays : undefined,
           includeDismissed: args.includeDismissed === true,
+          research,
+        })
+      } catch (error) {
+        return fail(error)
+      }
+    },
+  })
+
+  registerTool(ctx, {
+    name: 'wenmai_research',
+    description:
+      '针对目录点了但没写的结构性缺口，在本机 raw/ 与 sourceRoots 里查有没有旧稿可编译。用户说「目录点了但没写 / 查库里有没有旧稿可编译」时调用。默认关闭；关掉就说明如何打开 research: true，禁止改去抓网页。不生成正文、不写盘。',
+    parameters: {
+      id: { type: 'string', description: 'Finding fingerprint; omit to list all open structural gaps' },
+    },
+    async execute(args, exec) {
+      throwIfAborted(exec.signal)
+      try {
+        const roots = await effectiveRoots(root, pluginRoots, exec.agent)
+        return await researchVault(root, {
+          findingId: typeof args.id === 'string' ? args.id : undefined,
+          enabled: research,
+          sourceRoots: rootPaths(roots),
         })
       } catch (error) {
         return fail(error)

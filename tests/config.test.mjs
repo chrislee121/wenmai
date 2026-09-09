@@ -10,6 +10,7 @@ test('Config fills defaults', () => {
     assert.deepEqual(result.value.sourceRoots, [])
     assert.equal(result.value.orientBudgetChars, 8000)
     assert.equal(result.value.ingestAdapters, false)
+    assert.equal(result.value.research, false)
   }
 })
 
@@ -18,7 +19,7 @@ test('Config rejects bad sourceRoots', () => {
   assert.equal('issues' in result, true)
 })
 
-test('Config rejects bad ingestAdapters', () => {
-  const result = Config['~standard'].validate({ ingestAdapters: 'yes' })
+test('Config rejects bad research', () => {
+  const result = Config['~standard'].validate({ research: 'yes' })
   assert.equal('issues' in result, true)
 })

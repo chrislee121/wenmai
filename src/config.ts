@@ -3,6 +3,7 @@ export interface Config {
   sourceRoots: string[]
   orientBudgetChars: number
   ingestAdapters: boolean
+  research: boolean
 }
 
 const DEFAULTS: Config = {
@@ -10,6 +11,7 @@ const DEFAULTS: Config = {
   sourceRoots: [],
   orientBudgetChars: 8000,
   ingestAdapters: false,
+  research: false,
 }
 
 interface StandardIssue {
@@ -39,6 +41,7 @@ function parse(value: unknown): StandardSuccess | StandardFailure {
   const sourceRoots = asStringArray(input.sourceRoots)
   const ingestAdapters =
     input.ingestAdapters === undefined ? DEFAULTS.ingestAdapters : input.ingestAdapters
+  const research = input.research === undefined ? DEFAULTS.research : input.research
 
   if (typeof root !== 'string' || root.trim() === '') {
     issues.push({ message: 'root must be a non-empty string' })
@@ -54,6 +57,9 @@ function parse(value: unknown): StandardSuccess | StandardFailure {
   if (typeof ingestAdapters !== 'boolean') {
     issues.push({ message: 'ingestAdapters must be a boolean' })
   }
+  if (typeof research !== 'boolean') {
+    issues.push({ message: 'research must be a boolean' })
+  }
   if (issues.length > 0) return { issues }
   return {
     value: {
@@ -61,6 +67,7 @@ function parse(value: unknown): StandardSuccess | StandardFailure {
       sourceRoots: sourceRoots ?? [],
       orientBudgetChars: orientBudgetChars as number,
       ingestAdapters: ingestAdapters as boolean,
+      research: research as boolean,
     },
   }
 }

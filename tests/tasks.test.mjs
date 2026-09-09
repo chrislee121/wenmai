@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { initVault, writePage } from '../dist/store.js'
 import { reviewVault } from '../dist/review/index.js'
 import { refactorVault } from '../dist/refactor/index.js'
-import { derivePriority, runTasks, suggestedOp } from '../dist/tasks/index.js'
+import { derivePriority, runTasks, suggestedOp, suggestedOpForFinding } from '../dist/tasks/index.js'
 import { checkWritten } from '../dist/written.js'
 import { assertLosslessJson } from './helpers/lossless-json.mjs'
 
@@ -91,6 +91,27 @@ test('written attaches overlapping open tasks and omits the key when none match'
   })
 })
 
+test('written attaches catalog gap tasks even when verdict is NEW', async () => {
+  await withVault(async (dir) => {
+    const abs = path.join(dir, 'index.md')
+    const index = await readFile(abs, 'utf8')
+    await writeFile(abs, index.replace('## Concepts', '## Concepts\n\n- [[本地-web-ui]] — 本地 Web UI\n'), 'utf8')
+    const listed = await runTasks(dir, { op: 'list', research: true })
+    const gap = listed.tasks.find((item) => item.suggestedOp === 'research')
+    assert.ok(gap)
+    const hit = await checkWritten(dir, [], '本地-web-ui', 20, { research: true })
+    assert.equal(hit.verdict, 'NEW')
+    assert.match(hit.reason, /目录已点名/)
+    assert.ok(hit.openTasks?.some((item) => item.id === gap.id))
+    assert.equal(hit.openTasks?.find((item) => item.id === gap.id)?.suggestedOp, 'research')
+    const off = await checkWritten(dir, [], '本地-web-ui')
+    assert.equal(off.verdict, 'NEW')
+    assert.ok(off.openTasks?.some((item) => item.id === gap.id))
+    assert.equal(off.openTasks?.find((item) => item.id === gap.id)?.suggestedOp, undefined)
+    assertLosslessJson(hit)
+  })
+})
+
 test('refactor merge with finding ack clears the task from written', async () => {
   await withVault(async (dir) => {
     await writePage(dir, 'concepts/mcp-a.md', page('MCP 工具协议'), { updateIndex: true })
@@ -125,6 +146,18 @@ test('suggestedOp and priority follow the deterministic table', () => {
   assert.equal(suggestedOp('source-missing'), 'rewrite')
   assert.equal(suggestedOp('conflict-candidate'), undefined)
   assert.equal(suggestedOp('index-mismatch'), undefined)
+  assert.equal(
+    suggestedOpForFinding({ kind: 'index-mismatch', paths: ['index.md', 'missing-slug'] }, { research: true }),
+    'research',
+  )
+  assert.equal(
+    suggestedOpForFinding({ kind: 'index-mismatch', paths: ['concepts/foo.md', 'index.md'] }, { research: true }),
+    undefined,
+  )
+  assert.equal(
+    suggestedOpForFinding({ kind: 'index-mismatch', paths: ['index.md', 'missing-slug'] }),
+    undefined,
+  )
   assert.equal(derivePriority({ kind: 'duplicate', severity: 'warning' }, undefined), 'high')
   assert.equal(derivePriority({ kind: 'conflict-candidate', severity: 'warning' }, undefined), 'high')
   assert.equal(derivePriority({ kind: 'orphan-page', severity: 'info' }, undefined), 'low')

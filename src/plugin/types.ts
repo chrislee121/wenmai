@@ -10,6 +10,7 @@ export interface PluginRuntime {
   root: string
   pluginRoots: string[]
   ingestAdapters: boolean
+  research: boolean
   refreshOrient: () => Promise<void>
   getOrientText: () => string
 }

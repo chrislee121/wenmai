@@ -14,7 +14,7 @@ export type { WenmaiConfig as ConfigType }
 export const name = 'wenmai'
 export const inject = ['tools', 'commands', 'systemPrompt']
 
-export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai', sourceRoots: [], orientBudgetChars: 8000, ingestAdapters: false }): void {
+export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai', sourceRoots: [], orientBudgetChars: 8000, ingestAdapters: false, research: false }): void {
   const parsed = Config['~standard'].validate(rawConfig ?? {})
   if ('issues' in parsed) {
     throw new Error(parsed.issues.map((issue) => issue.message).join('; '))
@@ -55,6 +55,7 @@ export function apply(ctx: Context, rawConfig: WenmaiConfig = { root: '~/wenmai'
     root,
     pluginRoots,
     ingestAdapters: config.ingestAdapters === true,
+    research: config.research === true,
     refreshOrient,
     getOrientText: () => orientText,
   }

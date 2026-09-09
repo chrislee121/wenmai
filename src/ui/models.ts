@@ -58,6 +58,24 @@ export interface StatusCardModel {
   rawCount: number
   indexUpdated: string | null
   sourceRoots: Array<{ path: string; readable: boolean; origin: string }>
+  research: boolean
+}
+
+export interface ResearchEvidenceView {
+  path: string
+  title: string
+  snippet: string
+}
+
+export interface ResearchCardModel {
+  running: boolean
+  error?: string
+  status: 'ready' | 'no-local-evidence' | ''
+  slug: string
+  proposedPath: string
+  note: string
+  evidence: ResearchEvidenceView[]
+  proposedSources: string[]
 }
 
 export interface TaskCardItem {
@@ -264,6 +282,7 @@ export function statusCardModel(payload: unknown, running = false): StatusCardMo
       rawCount: 0,
       indexUpdated: null,
       sourceRoots: [],
+      research: false,
     }
   }
   const rec = asRecord(payload)
@@ -278,6 +297,7 @@ export function statusCardModel(payload: unknown, running = false): StatusCardMo
       rawCount: 0,
       indexUpdated: null,
       sourceRoots: [],
+      research: false,
     }
   }
   const sourceRoots: StatusCardModel['sourceRoots'] = []
@@ -300,6 +320,7 @@ export function statusCardModel(payload: unknown, running = false): StatusCardMo
     rawCount: asNumber(rec.rawCount),
     indexUpdated: typeof rec.indexUpdated === 'string' ? rec.indexUpdated : null,
     sourceRoots,
+    research: asBoolean(rec.research, false),
   }
 }
 
@@ -335,6 +356,72 @@ export function tasksCardModel(payload: unknown, running = false): TasksCardMode
     op: asString(rec.op, 'list'),
     taskCount: asNumber(rec.taskCount, tasks.length),
     tasks,
+  }
+}
+
+export function researchCardModel(payload: unknown, running = false): ResearchCardModel {
+  if (running) {
+    return {
+      running: true,
+      status: '',
+      slug: '',
+      proposedPath: '',
+      note: '',
+      evidence: [],
+      proposedSources: [],
+    }
+  }
+  const rec = asRecord(payload)
+  if (!rec || rec.ok === false) {
+    const error = rec ? asString(rec.error, '无法研究') : '无法读取结果'
+    return {
+      running: false,
+      error,
+      status: '',
+      slug: '',
+      proposedPath: '',
+      note: '',
+      evidence: [],
+      proposedSources: [],
+    }
+  }
+  const briefs = Array.isArray(rec.briefs) ? rec.briefs : []
+  const first = asRecord(briefs[0])
+  if (!first) {
+    return {
+      running: false,
+      status: 'no-local-evidence',
+      slug: '',
+      proposedPath: '',
+      note: '没有目录缺页可查。',
+      evidence: [],
+      proposedSources: [],
+    }
+  }
+  const evidence: ResearchEvidenceView[] = []
+  if (Array.isArray(first.evidence)) {
+    for (const item of first.evidence) {
+      const hit = asRecord(item)
+      if (!hit) continue
+      evidence.push({
+        path: asString(hit.path),
+        title: asString(hit.title),
+        snippet: asString(hit.snippet),
+      })
+    }
+  }
+  const proposedSources = Array.isArray(first.proposedSources)
+    ? first.proposedSources.filter((item): item is string => typeof item === 'string')
+    : []
+  const statusRaw = asString(first.status)
+  return {
+    running: false,
+    status: statusRaw === 'ready' ? 'ready' : 'no-local-evidence',
+    slug: asString(first.slug),
+    proposedPath: asString(first.proposedPath),
+    note: asString(first.note),
+    evidence,
+    proposedSources,
   }
 }
 

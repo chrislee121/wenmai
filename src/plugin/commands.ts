@@ -1,20 +1,25 @@
-import { spawn } from 'node:child_process'
 import { writeGraphHtml } from '../graph.js'
 import { lintVault } from '../lint.js'
+import { runOp, type OpsRuntime } from '../ops/index.js'
 import { reviewVault } from '../review/index.js'
 import { status } from '../store.js'
 import { formatGraph, formatLint, formatReview, formatStatus } from './format.js'
 import { throwIfAborted } from './register.js'
-import { effectiveRoots, rootPaths } from './roots.js'
 import type { PluginRuntime } from './types.js'
 
-function openLocalFile(file: string): void {
-  if (process.platform !== 'darwin') return
-  spawn('open', [file], { detached: true, stdio: 'ignore' }).unref()
+function asRuntime(runtime: PluginRuntime): OpsRuntime {
+  return {
+    root: runtime.root,
+    pluginRoots: runtime.pluginRoots,
+    ingestAdapters: runtime.ingestAdapters,
+    research: runtime.research,
+    refreshOrient: runtime.refreshOrient,
+  }
 }
 
 export function registerWenmaiCommands(runtime: PluginRuntime): void {
-  const { ctx, root, pluginRoots, refreshOrient, getOrientText } = runtime
+  const { ctx, refreshOrient, getOrientText } = runtime
+  const ops = asRuntime(runtime)
 
   ctx.commands.register({
     name: 'wenmai',
@@ -24,22 +29,23 @@ export function registerWenmaiCommands(runtime: PluginRuntime): void {
       throwIfAborted(signal)
       const sub = rawInput.trim() || 'status'
       console.log(`[wenmai] /wenmai ${sub}`)
+      const workspace = agent?.session?.cwd ?? agent?.session?.header?.cwd
       try {
         if (sub === 'status') {
-          const report = await status(root, await effectiveRoots(root, pluginRoots, agent))
-          return { kind: 'success', text: formatStatus(report) }
+          const report = await runOp(ops, { op: 'status', workspace })
+          return { kind: 'success', text: formatStatus(report as Awaited<ReturnType<typeof status>>) }
         }
         if (sub === 'lint') {
-          const report = await lintVault(root)
-          return { kind: 'success', text: formatLint(report) }
+          const report = await runOp(ops, { op: 'lint', workspace })
+          return { kind: 'success', text: formatLint(report as Awaited<ReturnType<typeof lintVault>>) }
         }
         if (sub === 'orient') {
           await refreshOrient()
           return { kind: 'success', text: getOrientText() }
         }
         if (sub === 'review') {
-          const report = await reviewVault(root)
-          return { kind: 'success', text: formatReview(report) }
+          const report = await runOp(ops, { op: 'review', workspace })
+          return { kind: 'success', text: formatReview(report as Awaited<ReturnType<typeof reviewVault>>) }
         }
         if (sub === 'tasks') {
           return {
@@ -55,12 +61,8 @@ export function registerWenmaiCommands(runtime: PluginRuntime): void {
         }
         if (sub === 'graph' || sub.startsWith('graph ')) {
           const focus = sub.slice('graph'.length).trim() || undefined
-          const result = await writeGraphHtml(root, {
-            focus,
-            sourceRoots: rootPaths(await effectiveRoots(root, pluginRoots, agent)),
-          })
-          openLocalFile(result.htmlPath)
-          return { kind: 'success', text: formatGraph(result) }
+          const result = await runOp(ops, { op: 'graph', focus, open: true, workspace })
+          return { kind: 'success', text: formatGraph(result as Awaited<ReturnType<typeof writeGraphHtml>>) }
         }
         return { kind: 'error', text: 'Usage: /wenmai [status|lint|orient|graph|review|tasks|refactor]' }
       } catch (error) {

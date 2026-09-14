@@ -1,4 +1,4 @@
-type ParamSpec = {
+export type ParamSpec = {
   type: 'string' | 'number' | 'boolean'
   required?: boolean
   description?: string

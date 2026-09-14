@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-14
+
+不必经过 DeepSeek Harness，也能用同一套文脉能力。出口仍是动笔前问写过没有。
+
+### 新增
+
+- `wenmai` 命令行：子命令与现有 `wenmai_*` 对齐，stdout 输出 JSON。数据根默认 `~/wenmai`，可用 `--root` 或 `WENMAI_ROOT`
+- `wenmai mcp` 以本机 stdio 提供 MCP，工具名 1:1，不监听公网
+- DSH 插件、中间栏、CLI、MCP 走同一张 ops 表，不另造业务逻辑
+
+### 说明
+
+- 目录收录和重构默认 dry-run，确认后加 `--write`
+- 没有公开 HTTP API；现有 `/api/wenmai` 仍只给中间栏本机调用
+- `research` 默认关，不抓网页，不改 `raw/`，不扫家目录
+
 ## [0.7.0] - 2026-09-09
 
 目录点了但还没写的题，能在本机旧稿里查有没有料，并在动笔前告诉你。默认关闭。
@@ -155,6 +171,7 @@ DeepSeek Harness 对话框里可以直接看文脉结果，不必读一整段 JS
 - 安装目前走本地路径：`dsh plugin --profile web add /path/to/wenmai`
 - MIT 协议，仓库：https://github.com/chrislee121/wenmai
 
+[0.8.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.8.0
 [0.7.0]: https://github.com/chrislee121/wenmai/releases/tag/v0.7.0
 [0.6.2]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.2
 [0.6.1]: https://github.com/chrislee121/wenmai/releases/tag/v0.6.1

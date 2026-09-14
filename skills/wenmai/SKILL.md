@@ -69,3 +69,4 @@ ingest 目录对应：文章→`articles`，脚本/口播→`scripts`，文档/�
 - 核心不解析 PDF / Word；可选本地适配器转写（默认关）。不负责抓网页
 - 没有 finding 就没有任务；修某一条走 `wenmai_refactor`（默认 dry-run），队列不自动重构
 - 不要要求用户说出工具名
+- CLI / MCP 只是换壳：第一件事仍是 `wenmai_written`

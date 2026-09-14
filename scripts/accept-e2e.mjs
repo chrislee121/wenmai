@@ -8,6 +8,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import os from 'node:os'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { writeGraphHtml } from '../dist/graph.js'
 import { buildOrient } from '../dist/orient.js'
@@ -246,6 +247,26 @@ sources: [${ingested.rawPath}]
   const orient = await buildOrient(root, 8000)
   assert.match(orient, /SCHEMA.md/)
   assert.match(orient, /index.md/)
+
+  const cli = path.join(here, '../dist/cli.js')
+  const cliWritten = spawnSync(process.execPath, [cli, '--root', root, '--workspace', SOURCE_ROOTS[0], 'written', '拓扑量子纠错码'], {
+    encoding: 'utf8',
+  })
+  assert.equal(cliWritten.status, 0, cliWritten.stderr)
+  const cliFresh = JSON.parse(cliWritten.stdout)
+  assert.equal(cliFresh.verdict, 'NEW')
+  const cliReview = spawnSync(process.execPath, [cli, '--root', root, 'review'], { encoding: 'utf8' })
+  assert.equal(cliReview.status, 0, cliReview.stderr)
+  const cliReviewBody = JSON.parse(cliReview.stdout)
+  assert.equal(cliReviewBody.ok, true)
+  const cliIngest = spawnSync(
+    process.execPath,
+    [cli, '--root', root, '--workspace', SOURCE_ROOTS[0], 'ingest', '--dir', SOURCE_ROOTS[0]],
+    { encoding: 'utf8' },
+  )
+  assert.equal(cliIngest.status, 0, cliIngest.stderr)
+  const cliIngestBody = JSON.parse(cliIngest.stdout)
+  assert.equal(cliIngestBody.dryRun, true)
 
   console.log(
     JSON.stringify(

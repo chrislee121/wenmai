@@ -4,7 +4,7 @@
 
 # 文脉 Wenmai
 
-当前版本：**v0.7.0**
+当前版本：**v0.8.0**
 
 把写过的东西织成可查的文脉。
 
@@ -46,7 +46,7 @@
 
 ### 1. 安装插件
 
-npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.7.0**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
+npm 包 [`dsh-wenmai`](https://www.npmjs.com/package/dsh-wenmai) 已发布，当前 **0.8.0**。需要 Node.js 22.19+（或 24+）。已在 DeepSeek Harness `0.1.0-rc.8` 上测过。
 
 已安装 `dsh` 时：
 
@@ -86,6 +86,26 @@ dsh plugin --profile web add /path/to/wenmai
 ```sh
 dsh plugin --profile web remove dsh-wenmai
 ```
+
+### 不经过 DeepSeek Harness
+
+装好 npm 包后，其他 Agent 或脚本可以直接调同一套能力。第一件事仍是问「写过没有」，禁止凭记忆。CLI / MCP 不是第二个出口。
+
+```sh
+npx -p dsh-wenmai wenmai --root ~/wenmai --workspace ~/Documents/writing written "这个选题我写过没有"
+npx -p dsh-wenmai wenmai --root ~/wenmai review
+npx -p dsh-wenmai wenmai --root ~/wenmai ingest --dir ~/Documents/writing
+```
+
+目录收录和重构默认只预览。确认后再加 `--write`。
+
+给 Cursor / Claude 等用 stdio MCP：
+
+```sh
+npx -p dsh-wenmai wenmai --root ~/wenmai --workspace ~/Documents/writing mcp
+```
+
+工具名仍是 `wenmai_*`，与插件一致。不监听公网端口，内容不出本机。
 
 ### 2. 选工作区
 
@@ -173,7 +193,7 @@ dsh plugin --profile web remove dsh-wenmai
 
 ## 和 AI Agent 怎么用
 
-你在 DeepSeek Harness 的对话框里正常说话。**不用点名 `wenmai_*`。** 开局会自动带上 SCHEMA、目录和最近日志，Agent 先看这些，再动手。
+你在 DeepSeek Harness 的对话框里正常说话。**不用点名 `wenmai_*`。** 开局会自动带上 SCHEMA、目录和最近日志，Agent 先看这些，再动手。其他 Agent 走 CLI / MCP 时，工具名相同，第一件事仍是 `wenmai_written`。
 
 ### 开局它已经知道什么
 

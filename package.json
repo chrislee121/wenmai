@@ -1,6 +1,6 @@
 {
   "name": "dsh-wenmai",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "文脉 Wenmai — 文字工作者的编译型知识库，DeepSeek Harness 插件",
   "type": "module",
   "license": "MIT",
@@ -22,6 +22,9 @@
     "./client": "./dist/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
+  },
+  "bin": {
+    "wenmai": "./dist/cli.js"
   },
   "files": [
     "dist",
